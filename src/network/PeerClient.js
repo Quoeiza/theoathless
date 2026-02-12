@@ -60,4 +60,15 @@ export default class PeerClient extends EventEmitter {
             }
         });
     }
+
+    sendTo(peerId, data) {
+        const conn = this.connections.find(c => c.peer === peerId);
+        if (conn) {
+            try {
+                if (conn.open) conn.send(data);
+            } catch (e) {
+                console.warn(`PeerClient SendTo ${peerId} Error:`, e);
+            }
+        }
+    }
 }

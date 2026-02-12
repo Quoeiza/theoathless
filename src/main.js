@@ -138,6 +138,8 @@ class Game {
             if (isHost) {
                 this.startHost(id);
             } else if (hostId) {
+                // Update UI to show the room we are trying to join
+                document.getElementById('room-code-display').innerText = `Room: ${hostId}`;
                 this.peerClient.connect(hostId, { name: this.playerData.name, class: this.playerData.class });
             }
         });
@@ -612,6 +614,7 @@ class Game {
                     this.syncManager.addSnapshot(data.payload);
                 } else if (data.type === 'INIT_WORLD') {
                     this.gridSystem.grid = data.payload.grid;
+                    this.gridSystem.torches = data.payload.torches || [];
                     this.state.connected = true;
                 } else if (data.type === 'UPDATE_HP') {
                     if (data.payload.id === this.state.myId) {
@@ -666,10 +669,10 @@ class Game {
         this.peerClient.on('connected', ({ peerId, metadata }) => {
             console.log(`Connected to ${peerId}`, metadata);
             if (this.state.isHost) {
-                // Send world data to new client
-                this.peerClient.send({
+                // Send world data specifically to the new client
+                this.peerClient.sendTo(peerId, {
                     type: 'INIT_WORLD',
-                    payload: { grid: this.gridSystem.grid }
+                    payload: { grid: this.gridSystem.grid, torches: this.gridSystem.torches }
                 });
                 // Spawn them
                 const spawn = this.gridSystem.getSpawnPoint();
@@ -1119,8 +1122,8 @@ class Game {
                 this.state.extractionOpen = true;
                 this.gridSystem.spawnExtractionZone();
                 // Broadcast map update (simple way: resend INIT_WORLD or just let grid sync via snapshot if we synced grid... which we don't usually per frame)
-                // For this revision, we rely on the fact that we don't sync grid changes per frame. We need to send an event.
-                this.peerClient.send({ type: 'INIT_WORLD', payload: { grid: this.gridSystem.grid } });
+                // For this revision, we rely on the fact that we don't sync grid changes per frame.
+                this.peerClient.send({ type: 'INIT_WORLD', payload: { grid: this.gridSystem.grid, torches: this.gridSystem.torches } });
             }
 
             if (this.state.gameTime <= 0) {
