@@ -37,7 +37,7 @@ export default class PeerClient extends EventEmitter {
     }
 
     connect(hostId, metadata = {}) {
-        const conn = this.peer.connect(hostId, { metadata });
+        const conn = this.peer.connect(hostId, { metadata, reliable: true });
         this.handleConnection(conn);
     }
 
@@ -49,6 +49,11 @@ export default class PeerClient extends EventEmitter {
         conn.on('open', () => {
             this.emit('connected', { peerId: conn.peer, metadata: conn.metadata });
         });
+
+        // If connection is already open (race condition), emit immediately
+        if (conn.open) {
+            this.emit('connected', { peerId: conn.peer, metadata: conn.metadata });
+        }
     }
 
     send(data) {

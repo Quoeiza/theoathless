@@ -4,6 +4,7 @@ export default class SyncManager {
         // Delay interpolation to ensure we have a "next" frame to lerp to.
         // 100ms is a safe starting point for WAN.
         this.interpolationDelay = 100; 
+        this.timeOffset = null; // Server Time - Client Time
     }
 
     serializeState(gridSystem, combatSystem, lootSystem, gameTime) {
@@ -26,6 +27,12 @@ export default class SyncManager {
     }
 
     addSnapshot(snapshot) {
+        // Initialize time offset on first snapshot to sync clocks
+        if (this.timeOffset === null) {
+            this.timeOffset = snapshot.t - Date.now();
+            console.log("SyncManager: Time offset synchronized:", this.timeOffset);
+        }
+
         this.snapshotBuffer.push(snapshot);
         // Keep buffer small
         if (this.snapshotBuffer.length > 20) {
@@ -33,8 +40,11 @@ export default class SyncManager {
         }
     }
 
-    getInterpolatedState(now) {
-        const renderTime = now - this.interpolationDelay;
+    getInterpolatedState(clientNow) {
+        // If we haven't synced time yet, we can't interpolate correctly
+        if (this.timeOffset === null) return { entities: new Map(), loot: new Map(), gameTime: 0 };
+
+        const renderTime = (clientNow + this.timeOffset) - this.interpolationDelay;
 
         // Find two snapshots surrounding renderTime
         let prev = null;

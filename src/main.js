@@ -23,7 +23,8 @@ class Game {
             nextActionTime: 0,
             projectiles: [],
             interaction: null, // { type, targetId, startTime, duration, x, y }
-            lavaTimer: 0
+            lavaTimer: 0,
+            handshakeInterval: null
         };
         this.database = new Database();
         this.playerData = { name: 'Player', gold: 0, class: 'Fighter' };
@@ -626,9 +627,16 @@ class Game {
                 if (data.type === 'SNAPSHOT') {
                     this.syncManager.addSnapshot(data.payload);
                 } else if (data.type === 'INIT_WORLD') {
-                    console.log("Client: Received INIT_WORLD");
+                    console.log("Client: Received INIT_WORLD", data.payload);
                     this.gridSystem.grid = data.payload.grid;
                     this.gridSystem.torches = data.payload.torches || [];
+                    
+                    // Stop the handshake retry loop
+                    if (this.state.handshakeInterval) {
+                        clearInterval(this.state.handshakeInterval);
+                        this.state.handshakeInterval = null;
+                    }
+                    
                     this.state.connected = true;
                 } else if (data.type === 'UPDATE_HP') {
                     if (data.payload.id === this.state.myId) {
@@ -688,8 +696,12 @@ class Game {
                 this.gridSystem.addEntity(peerId, spawn.x, spawn.y);
                 this.combatSystem.registerEntity(peerId, 'player', true, metadata.class || 'Fighter', metadata.name || 'Unknown');
             } else {
-                // Client: Send HELLO to trigger world download
-                this.peerClient.send({ type: 'HELLO' });
+                // Client: Start Handshake Retry Loop
+                // Send HELLO every 500ms until INIT_WORLD is received
+                console.log("Client: Connected. Starting Handshake...");
+                this.state.handshakeInterval = setInterval(() => {
+                    if (!this.state.connected) this.peerClient.send({ type: 'HELLO' });
+                }, 500);
             }
         });
     }
