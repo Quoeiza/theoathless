@@ -137,6 +137,7 @@ class Game {
         this.peerClient.on('ready', (id) => {
             if (isHost) {
                 this.startHost(id);
+                document.getElementById('room-code-display').innerText = `Room: ${id}`;
             } else if (hostId) {
                 // Update UI to show the room we are trying to join
                 document.getElementById('room-code-display').innerText = `Room: ${hostId}`;
@@ -507,8 +508,6 @@ class Game {
     setupNetwork() {
         this.peerClient.on('ready', (id) => {
             this.state.myId = id;
-            const el = document.getElementById('room-code-display');
-            if (el) el.innerText = `Room: ${id}`;
         });
 
         // Combat Events (Local & Networked)
@@ -608,6 +607,10 @@ class Game {
                 if (data.type === 'INPUT') {
                     this.processPlayerInput(sender, data.payload);
                 }
+                if (data.type === 'INTERACT_LOOT') {
+                    const loot = this.lootSystem.worldLoot.get(data.payload.lootId);
+                    if (loot) this.processLootInteraction(sender, loot);
+                }
             } else {
                 // Client Logic: Receive State
                 if (data.type === 'SNAPSHOT') {
@@ -678,11 +681,6 @@ class Game {
                 const spawn = this.gridSystem.getSpawnPoint();
                 this.gridSystem.addEntity(peerId, spawn.x, spawn.y);
                 this.combatSystem.registerEntity(peerId, 'player', true, metadata.class || 'Fighter', metadata.name || 'Unknown');
-            }
-
-            if (this.state.isHost && data.type === 'INTERACT_LOOT') {
-                const loot = this.lootSystem.worldLoot.get(data.payload.lootId);
-                if (loot) this.processLootInteraction(sender, loot);
             }
         });
     }
