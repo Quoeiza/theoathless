@@ -1,0 +1,13 @@
+{
+    "weapons": {
+        "sword_basic": { "id": "sword_basic", "name": "Rusty Sword", "damage": 10, "range": 1, "sprite": "sword_1.png" },
+        "bow_basic": { "id": "bow_basic", "name": "Shortbow", "damage": 5, "range": 5, "sprite": "bow_1.png" }
+    },
+    "consumables": {
+        "potion_health": { "id": "potion_health", "name": "Health Potion", "effect": "heal", "value": 25, "sprite": "potion_red.png" }
+    },
+    "loot_table_tier_1": [
+        { "itemId": "sword_basic", "chance": 0.1 },
+        { "itemId": "potion_health", "chance": 0.3 }
+    ]
+}

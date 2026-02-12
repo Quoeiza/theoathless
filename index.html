@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DungExtract</title>
+    <link rel="stylesheet" href="css/main.css">
+    <!-- PeerJS CDN -->
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+</head>
+<body>
+    <div id="ui-layer">
+        <div id="room-code-display">Connecting...</div>
+        <div id="stats-bar">
+            <div class="stat">HP: <span id="hp-val">100</span></div>
+            <div class="stat">Gold: <span id="gold-val">0</span></div>
+        </div>
+        
+        <!-- Mobile Controls -->
+        <div id="mobile-controls">
+            <div class="dpad">
+                <button id="btn-up">^</button>
+                <div class="dpad-row">
+                    <button id="btn-left"><</button>
+                    <button id="btn-right">></button>
+                </div>
+                <button id="btn-down">v</button>
+            </div>
+            <div class="actions">
+                <button id="btn-attack">ATK</button>
+                <button id="btn-pickup">E</button>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="game-canvas"></canvas>
+
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>
