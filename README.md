@@ -54,3 +54,5 @@
 
 ---
 *Inspired by Dark & Darker, Dungeonborne, and Dungeonmans.*
+
+Last updated: 02/13/2026 19:13:49
