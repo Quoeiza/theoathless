@@ -14,6 +14,11 @@ export default class CombatSystem extends EventEmitter {
         };
     }
 
+    clear() {
+        this.stats.clear();
+        this.cooldowns.clear();
+    }
+
     registerEntity(id, type, isPlayer = false, playerClass = 'Fighter', name = null) {
         let stats = { 
             hp: 100, 

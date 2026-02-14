@@ -518,11 +518,35 @@ class Game {
 
     addKillFeed(msg) {
         const feed = document.getElementById('kill-feed');
+        if (!feed) return;
+
         const div = document.createElement('div');
         div.className = 'kill-msg';
         div.innerHTML = msg;
+        
+        // Ensure opacity transition logic
+        div.style.opacity = '1';
+        div.style.transition = 'opacity 0.5s ease-out';
+        div.style.animation = 'none';
+
+        // Append to bottom so newest is last
         feed.appendChild(div);
-        setTimeout(() => div.remove(), 5000);
+
+        // Stack Management: Keep last 5 visible
+        const children = Array.from(feed.children);
+        const maxItems = 5;
+        const threshold = children.length - maxItems;
+
+        children.forEach((child, index) => {
+            if (index < threshold) {
+                if (child.style.opacity !== '0') {
+                    child.style.opacity = '0';
+                    setTimeout(() => { if (child.parentNode) child.remove(); }, 500);
+                }
+            } else {
+                child.style.opacity = '1';
+            }
+        });
     }
 
     processLootInteraction(entityId, loot) {
@@ -644,9 +668,9 @@ class Game {
             console.log(`${entityId} killed by ${killerId}`);
             
             // Capture position before removal for loot drop
-            const pos = this.gridSystem.entities.get(entityId);
-            const deathX = pos ? pos.x : 0;
-            const deathY = pos ? pos.y : 0;
+            const deathPos = this.gridSystem.entities.get(entityId);
+            const deathX = deathPos ? deathPos.x : 0;
+            const deathY = deathPos ? deathPos.y : 0;
 
             this.gridSystem.removeEntity(entityId);
             this.audioSystem.play('death');
@@ -680,21 +704,14 @@ class Game {
                 
                 // 1. Spawn Loot
                 // Drop all items in a bag at the location of death
-                const pos = this.gridSystem.entities.get(entityId) || { x: 0, y: 0 }; // Note: Entity removed from grid in event handler above, need to fix order or pass pos
-                // Actually, gridSystem.removeEntity is called at start of this handler. We need the pos.
-                // Since we can't get it easily now, we'll use the killer's pos or a fallback.
-                // *Correction*: We should grab pos before removeEntity.
-                // For this "easy improvement", we will assume the entity is removed but we want to drop loot.
-                // We will use a fallback spawn for now, but in a real fix we'd pass pos in the death event.
-                // Let's use a random nearby point to the killer if available.
-                let dropX = 0, dropY = 0;
-                if (killerId) {
+                // Use captured death coordinates
+                let dropX = deathX;
+                let dropY = deathY;
+                
+                // Fallback if position was somehow invalid
+                if (!deathPos && killerId) {
                     const kPos = this.gridSystem.entities.get(killerId);
                     if (kPos) { dropX = kPos.x; dropY = kPos.y; }
-                }
-                if (dropX === 0) {
-                    const spawn = this.gridSystem.getSpawnPoint(false);
-                    dropX = spawn.x; dropY = spawn.y;
                 }
 
                 const items = this.lootSystem.getAllItems(entityId);
@@ -839,6 +856,8 @@ class Game {
     startHost(id) {
         this.state.isHost = true;
         this.state.connected = true;
+        this.lootSystem.clear();
+        this.combatSystem.clear();
         this.gridSystem.initializeDungeon();
         this.gridSystem.populate(this.combatSystem, this.lootSystem, this.config);
         
@@ -1731,10 +1750,66 @@ class Game {
 
     showGameOver(msg) {
         const ui = document.getElementById('ui-layer');
+        
+        // Freeze Kill Feed: Clone to detach from existing timeouts and stop fading
+        const feed = document.getElementById('kill-feed');
+        if (feed) {
+            const clone = feed.cloneNode(true);
+            feed.parentNode.replaceChild(clone, feed);
+            
+            // Force visibility on all current items in the clone
+            Array.from(clone.children).forEach(child => {
+                child.style.opacity = '1';
+                child.style.transition = 'none';
+            });
+            
+            // Elevate z-index
+            clone.style.zIndex = '2001';
+            if (window.getComputedStyle(clone).position === 'static') {
+                clone.style.position = 'relative';
+            }
+        }
+
         const screen = document.createElement('div');
         screen.id = 'game-over-screen';
-        screen.innerHTML = `<h1>GAME OVER</h1><h2>${msg}</h2><button onclick="location.reload()">Return to Lobby</button>`;
+        Object.assign(screen.style, {
+            position: 'absolute',
+            top: '0',
+            left: '0',
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: '2000',
+            color: 'white',
+            fontFamily: 'sans-serif',
+            pointerEvents: 'auto'
+        });
+
+        screen.innerHTML = `
+            <h1 style="font-size: 4rem; margin-bottom: 1rem; text-shadow: 0 0 10px #ff0000;">GAME OVER</h1>
+            <h2 style="font-size: 2rem; margin-bottom: 2rem; color: #ccc;">${msg}</h2>
+            <button id="btn-return-lobby" style="padding: 15px 30px; font-size: 1.2rem; cursor: pointer; background: #444; color: white; border: 1px solid #666;">Return to Lobby</button>
+        `;
+        
         ui.appendChild(screen);
+        
+        document.getElementById('btn-return-lobby').onclick = () => location.reload();
+
+        // Elevate other HUD elements to stay visible above overlay
+        ['room-code-display', 'game-timer'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.style.zIndex = '2001';
+                if (window.getComputedStyle(el).position === 'static') {
+                    el.style.position = 'relative';
+                }
+            }
+        });
+
         this.gameLoop.stop();
     }
 

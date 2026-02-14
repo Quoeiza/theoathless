@@ -4,11 +4,40 @@ export default class LootSystem {
         this.worldLoot = new Map(); // ID -> { itemId, x, y }
         this.inventories = new Map(); // EntityID -> [items]
         this.equipment = new Map(); // EntityID -> { weapon: null, armor: null, quick1: null, quick2: null, quick3: null }
+        this.lootSpatial = new Map(); // "x,y" -> Set<lootId>
+    }
+
+    clear() {
+        this.worldLoot.clear();
+        this.inventories.clear();
+        this.equipment.clear();
+        this.lootSpatial.clear();
+    }
+
+    _getSpatialKey(x, y) {
+        return `${Math.round(x)},${Math.round(y)}`;
+    }
+
+    _addToSpatial(loot) {
+        const key = this._getSpatialKey(loot.x, loot.y);
+        if (!this.lootSpatial.has(key)) this.lootSpatial.set(key, new Set());
+        this.lootSpatial.get(key).add(loot.id);
+    }
+
+    _removeFromSpatial(loot) {
+        const key = this._getSpatialKey(loot.x, loot.y);
+        if (this.lootSpatial.has(key)) {
+            const set = this.lootSpatial.get(key);
+            set.delete(loot.id);
+            if (set.size === 0) this.lootSpatial.delete(key);
+        }
     }
 
     spawnLoot(x, y, itemId, count = 1, type = 'chest', gold = 0) {
         const id = `loot_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        this.worldLoot.set(id, { id, itemId, count, x, y, opened: false, type, gold });
+        const loot = { id, itemId, count, x, y, opened: false, type, gold };
+        this.worldLoot.set(id, loot);
+        this._addToSpatial(loot);
         return id;
     }
 
@@ -36,26 +65,35 @@ export default class LootSystem {
     }
 
     getLootAt(x, y) {
-        for (const loot of this.worldLoot.values()) {
-            if (loot.x === x && loot.y === y) return loot;
+        const key = this._getSpatialKey(x, y);
+        const ids = this.lootSpatial.get(key);
+        if (!ids) return null;
+        for (const id of ids) {
+            return this.worldLoot.get(id);
         }
         return null;
     }
 
     getItemsAt(x, y) {
+        const key = this._getSpatialKey(x, y);
+        const ids = this.lootSpatial.get(key);
+        if (!ids) return [];
         const items = [];
-        for (const loot of this.worldLoot.values()) {
-            if (loot.x === x && loot.y === y) items.push(loot);
+        for (const id of ids) {
+            const loot = this.worldLoot.get(id);
+            if (loot) items.push(loot);
         }
         return items;
     }
 
     isCollidable(x, y) {
-        for (const loot of this.worldLoot.values()) {
-            if (loot.x === x && loot.y === y) {
-                // Only closed chests are collidable
-                if (loot.type === 'chest' && !loot.opened) return true;
-            }
+        const key = this._getSpatialKey(x, y);
+        const ids = this.lootSpatial.get(key);
+        if (!ids) return false;
+
+        for (const id of ids) {
+            const loot = this.worldLoot.get(id);
+            if (loot && loot.type === 'chest' && !loot.opened) return true;
         }
         return false;
     }
@@ -73,6 +111,7 @@ export default class LootSystem {
         const loot = this.worldLoot.get(lootId);
         if (!loot) return null;
         
+        this._removeFromSpatial(loot);
         this.worldLoot.delete(lootId);
         this.addItemToEntity(entityId, loot.itemId, loot.count || 1);
         return { itemId: loot.itemId, count: loot.count || 1, gold: loot.gold || 0 };
@@ -229,5 +268,9 @@ export default class LootSystem {
     syncLoot(remoteLootMap) {
         // Update local loot state to match server (crucial for collision logic)
         this.worldLoot = new Map(remoteLootMap);
+        this.lootSpatial.clear();
+        for (const loot of this.worldLoot.values()) {
+            this._addToSpatial(loot);
+        }
     }
 }
