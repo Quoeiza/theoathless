@@ -583,6 +583,15 @@ class Game {
             // Do NOT update room-code-display here, as it shows the internal UUID for clients
         });
 
+        this.peerClient.on('close', (id) => {
+            if (this.state.isHost) {
+                console.log(`Player ${id} disconnected`);
+                this.gridSystem.removeEntity(id);
+                this.combatSystem.stats.delete(id);
+                this.checkGameOver();
+            }
+        });
+
         // Combat Events (Local & Networked)
         this.combatSystem.on('damage', ({ targetId, amount, currentHp, sourceId, options }) => {
             // Update UI if it's me
@@ -706,6 +715,8 @@ class Game {
                         this.combatSystem.registerEntity(newId, type, false);
                     }, 100);
                 }
+
+                this.checkGameOver();
             }
         });
 
@@ -1533,6 +1544,8 @@ class Game {
             this.peerClient.send({ type: 'PLAYER_EXTRACTED', payload: { id: entityId } });
             this.peerClient.send({ type: 'KILL_FEED', payload: { msg: `<span class="highlight">${name}</span> escaped the dungeon!` } });
             this.addKillFeed(`<span class="highlight">${name}</span> escaped the dungeon!`);
+
+            this.checkGameOver();
             
             // Respawn as Monster
             setTimeout(() => {
@@ -1542,6 +1555,23 @@ class Game {
 
         if (entityId === this.state.myId) {
             this.showNotification("EXTRACTED! Respawning as Monster...");
+        }
+    }
+
+    checkGameOver() {
+        if (!this.state.isHost) return;
+
+        let survivorCount = 0;
+        for (const [id, stats] of this.combatSystem.stats) {
+            if (stats.isPlayer && stats.team === 'player') {
+                survivorCount++;
+            }
+        }
+
+        if (survivorCount === 0) {
+            const msg = "All Survivors Eliminated";
+            this.peerClient.send({ type: 'GAME_OVER', payload: { message: msg } });
+            this.showGameOver(msg);
         }
     }
 
