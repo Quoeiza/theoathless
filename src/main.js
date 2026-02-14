@@ -26,7 +26,8 @@ class Game {
             lavaTimer: 0,
             handshakeInterval: null,
             isExtracting: false,
-            autoPath: [] // For Auto-Explore
+            autoPath: [], // For Auto-Explore
+            chaseTargetId: null
         };
         this.database = new Database();
         this.playerData = { name: 'Player', gold: 0, class: 'Fighter' };
@@ -553,7 +554,7 @@ class Game {
                 this.updateQuickSlotUI();
                 const goldText = result.gold > 0 ? ` + ${result.gold}g` : '';
                 const itemName = this.getItemName(result.itemId);
-                this.showNotification(`Looted: ${itemName}${goldText}`);
+                this.showNotification(`${itemName}${goldText}`);
                 this.renderSystem.addFloatingText(this.gridSystem.entities.get(entityId).x, this.gridSystem.entities.get(entityId).y, `+${itemName}`, '#FFD700');
                 this.addKillFeed(`Looted ${itemName}${goldText}`);
             } else {
@@ -654,7 +655,7 @@ class Game {
                         this.playerData.gold += reward;
                         this.updateGoldUI();
                         this.database.savePlayer({ gold: this.playerData.gold });
-                        this.showNotification(`Kill: +${reward}g`);
+                        this.showNotification(`+${reward}g`);
                     } else {
                         this.peerClient.send({ type: 'UPDATE_GOLD', payload: { id: killerId, amount: reward } });
                     }
@@ -695,6 +696,15 @@ class Game {
                     setTimeout(() => {
                         this.respawnAsMonster(entityId);
                     }, 3000);
+                } else {
+                    // Test Mode: Respawn AI Monster
+                    setTimeout(() => {
+                        const newId = `ai_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+                        const spawn = this.gridSystem.getSpawnPoint();
+                        this.gridSystem.addEntity(newId, spawn.x, spawn.y);
+                        const type = (stats && stats.type) ? stats.type : 'slime';
+                        this.combatSystem.registerEntity(newId, type, false);
+                    }, 100);
                 }
             }
         });
@@ -878,10 +888,37 @@ class Game {
         // Determine if this is an Attack Command
         // Shift forces attack. Clicking a hostile entity implies attack.
         const isHostile = targetId && targetId !== this.state.myId;
+
+        // Melee Chase Logic
+        if (isHostile && !data.shift) {
+            const equip = this.lootSystem.getEquipment(this.state.myId);
+            const weaponId = equip.weapon;
+            const config = weaponId ? this.lootSystem.getItemConfig(weaponId) : null;
+            const isRanged = config && config.range > 1;
+
+            if (!isRanged) {
+                const dist = Math.max(Math.abs(gridX - pos.x), Math.abs(gridY - pos.y));
+                if (dist > 1) {
+                    // Move-to-Attack
+                    const path = this.gridSystem.findPath(pos.x, pos.y, gridX, gridY);
+                    if (path && path.length > 0) {
+                        path.pop(); // Remove target tile
+                        this.state.autoPath = path;
+                        this.state.chaseTargetId = targetId;
+                    }
+                    return; // Consume click
+                }
+            }
+        }
+
+        // Determine if this is an Attack Command
+        // Shift forces attack. Clicking a hostile entity implies attack.
         const isAttack = data.shift || isHostile;
 
         if (isAttack) {
             // Attack logic is now handled via polling in update() to support holding and global timer buffering
+            this.state.autoPath = [];
+            this.state.chaseTargetId = null;
             return; 
         }
 
@@ -1388,7 +1425,7 @@ class Game {
         if (intent.type === 'ABILITY') {
             const result = this.combatSystem.useAbility(entityId);
             if (result) {
-                this.showNotification(`Used ${result.ability}`);
+                this.showNotification(`${result.ability}`);
                 this.addKillFeed(`Used ${result.ability}`);
                 // Sync visual effects if needed
                 if (result.effect === 'stealth') {
@@ -1803,9 +1840,27 @@ class Game {
                         this.handleInput({ type: 'MOVE', direction: { x: Math.sign(dx), y: Math.sign(dy) } });
                     }
                 }
+            } else if (this.state.chaseTargetId && !moveIntent) {
+                // Path finished, check if we can attack
+                const targetPos = this.gridSystem.entities.get(this.state.chaseTargetId);
+                const myPos = this.gridSystem.entities.get(this.state.myId);
+                
+                if (targetPos && myPos) {
+                    const dist = Math.max(Math.abs(targetPos.x - myPos.x), Math.abs(targetPos.y - myPos.y));
+                    if (dist <= 1) {
+                        // Perform Attack
+                        this.handleInput({ 
+                            type: 'TARGET_ACTION', 
+                            x: targetPos.x, 
+                            y: targetPos.y 
+                        });
+                    }
+                }
+                this.state.chaseTargetId = null;
             } else if (moveIntent) {
                 // Manual input cancels auto-path
                 this.state.autoPath = [];
+                this.state.chaseTargetId = null;
             }
 
             if (moveIntent) {
@@ -1827,7 +1882,7 @@ class Game {
 
             // Poll Mouse for Continuous Attacks
             const mouse = this.inputManager.getMouseState();
-            if (mouse.left) {
+            if (mouse.left && this.state.autoPath.length === 0) {
                 const cam = this.renderSystem.camera;
                 const ts = this.config.global.tileSize || 64;
                 const gridX = Math.floor((mouse.x + cam.x) / ts);

@@ -16,6 +16,25 @@ export default class LootSystem {
         return this.spawnLoot(x, y, itemId, count, 'bag');
     }
 
+    getAllItems(entityId) {
+        const items = [];
+        const inv = this.getInventory(entityId);
+        if (inv) items.push(...inv);
+
+        const equip = this.getEquipment(entityId);
+        if (equip) {
+            Object.values(equip).forEach(item => {
+                if (item) items.push(item);
+            });
+        }
+        return items;
+    }
+
+    createLootBag(x, y, items) {
+        if (!items) return;
+        items.forEach(item => this.spawnDrop(x, y, item.itemId, item.count));
+    }
+
     getLootAt(x, y) {
         for (const loot of this.worldLoot.values()) {
             if (loot.x === x && loot.y === y) return loot;

@@ -348,8 +348,18 @@ export default class GridSystem {
     }
 
     populate(combatSystem, lootSystem, config) {
-        // Test Mode: No enemies or loot generation
-        console.log("GridSystem: Test Mode - Population skipped.");
+        // Test Mode: Single Respawning Enemy
+        const spawn = this.getSpawnPoint();
+        const id = `test_enemy_${Date.now()}`;
+        this.addEntity(id, spawn.x, spawn.y);
+        
+        // Pick first enemy type from config or default to 'slime'
+        const type = config.enemies && Object.keys(config.enemies).length > 0 
+            ? Object.keys(config.enemies)[0] 
+            : 'slime';
+
+        combatSystem.registerEntity(id, type, false);
+        console.log(`GridSystem: Spawned test enemy ${type} (${id}) at ${spawn.x},${spawn.y}`);
     }
 
     findPath(startX, startY, endX, endY) {
