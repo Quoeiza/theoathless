@@ -16,21 +16,22 @@ export default class GridSystem {
         this.spatialMap.clear();
 
         // 2. Create dungeon layout with BSP
-        const bspRoot = this.splitContainer({ x: 1, y: 1, w: this.width - 2, h: this.height - 2 }, 5);
+        const bspRoot = this.splitContainer({ x: 1, y: 1, w: this.width - 2, h: this.height - 2 }, 6);
         const leaves = this.getLeaves(bspRoot);
 
         // 3. Create rooms in the leaves
         for (const leaf of leaves) {
-            // Ensure room dimensions are at least 4x4 and max 8x8
-            const maxW = Math.min(8, leaf.w - 2);
-            const maxH = Math.min(8, leaf.h - 2);
+            // Maximize room size within the leaf for density
+            // Leave 1 tile padding
+            const availableW = leaf.w - 2;
+            const availableH = leaf.h - 2;
 
-            if (maxW < 4 || maxH < 4) continue;
+            if (availableW < 3 || availableH < 3) continue;
 
-            const roomW = Math.floor(Math.random() * (maxW - 4 + 1)) + 4;
-            const roomH = Math.floor(Math.random() * (maxH - 4 + 1)) + 4;
-            const roomX = leaf.x + 1 + Math.floor(Math.random() * (leaf.w - 2 - roomW + 1));
-            const roomY = leaf.y + 1 + Math.floor(Math.random() * (leaf.h - 2 - roomH + 1));
+            const roomW = Math.min(8, Math.max(3, Math.floor(availableW * (0.5 + Math.random() * 0.5))));
+            const roomH = Math.min(8, Math.max(3, Math.floor(availableH * (0.5 + Math.random() * 0.5))));
+            const roomX = leaf.x + 1 + Math.floor(Math.random() * (availableW - roomW + 1));
+            const roomY = leaf.y + 1 + Math.floor(Math.random() * (availableH - roomH + 1));
             
             const room = {
                 x: roomX, y: roomY, w: roomW, h: roomH,
@@ -49,7 +50,7 @@ export default class GridSystem {
 
         // 4.5 Add extra random connections for twists and loops
         if (this.rooms.length > 0) {
-            const extraCorridors = Math.floor(this.rooms.length * 0.5);
+            const extraCorridors = Math.floor(this.rooms.length * 1.5);
             for (let i = 0; i < extraCorridors; i++) {
                 const r1 = this.rooms[Math.floor(Math.random() * this.rooms.length)];
                 const r2 = this.rooms[Math.floor(Math.random() * this.rooms.length)];
@@ -86,7 +87,7 @@ export default class GridSystem {
     splitContainer(container, iter) {
         const root = { ...container, left: null, right: null };
         
-        if (iter <= 0 || (container.w < 7 && container.h < 7)) {
+        if (iter <= 0 || (container.w < 6 && container.h < 6)) {
             return root;
         }
 
@@ -96,10 +97,11 @@ export default class GridSystem {
         if (container.w > container.h && container.w / container.h >= 1.1) splitH = false;
         else if (container.h > container.w && container.h / container.w >= 1.1) splitH = true;
 
-        const max = (splitH ? container.h : container.w) - 4; // Min size 4
-        if (max <= 4) return root; // Too small to split
+        const minSplit = 3;
+        const max = (splitH ? container.h : container.w) - minSplit; 
+        if (max <= minSplit) return root; // Too small to split
 
-        const splitAt = Math.floor(Math.random() * (max - 4)) + 4;
+        const splitAt = Math.floor(Math.random() * (max - minSplit)) + minSplit;
 
         if (splitH) {
             root.left = this.splitContainer({ x: container.x, y: container.y, w: container.w, h: splitAt }, iter - 1);
@@ -147,37 +149,36 @@ export default class GridSystem {
     }
 
     createCorridor(x1, y1, x2, y2) {
-        const drawH = (y, xStart, xEnd) => {
-            const min = Math.min(xStart, xEnd);
-            const max = Math.max(xStart, xEnd);
-            for (let x = min; x <= max; x++) {
-                if (y >= 0 && y < this.height && x >= 0 && x < this.width) this.grid[y][x] = 0;
-            }
-        };
-        const drawV = (x, yStart, yEnd) => {
-            const min = Math.min(yStart, yEnd);
-            const max = Math.max(yStart, yEnd);
-            for (let y = min; y <= max; y++) {
-                if (y >= 0 && y < this.height && x >= 0 && x < this.width) this.grid[y][x] = 0;
-            }
-        };
+        let x = x1;
+        let y = y1;
+        
+        this.grid[y][x] = 0;
 
-        // 50% chance for Z-shape (Twist), 50% for L-shape
-        if (Math.random() < 0.5) {
-            const midX = Math.floor(x1 + (x2 - x1) * (0.3 + Math.random() * 0.4));
-            const midY = Math.floor(y1 + (y2 - y1) * (0.3 + Math.random() * 0.4));
-            if (Math.random() < 0.5) {
-                drawH(y1, x1, midX);
-                drawV(midX, y1, y2);
-                drawH(y2, midX, x2);
-            } else {
-                drawV(x1, y1, midY);
-                drawH(midY, x1, x2);
-                drawV(x2, midY, y2);
+        while (x !== x2 || y !== y2) {
+            const dx = x2 - x;
+            const dy = y2 - y;
+            
+            // Prefer moving along the axis with greater distance, but add randomness
+            // This creates a winding path that generally heads towards the target
+            const moveX = Math.abs(dx) > Math.abs(dy) 
+                ? Math.random() < 0.7 // 70% chance to follow major axis
+                : Math.random() < 0.3; // 30% chance to follow minor axis (X)
+
+            // If we are already at the target on one axis, force the other
+            const forceX = (y === y2);
+            const forceY = (x === x2);
+            
+            const isX = forceX || (moveX && !forceY);
+            
+            // Random step size for "jagged" look (1 to 3 tiles)
+            const step = Math.floor(Math.random() * 3) + 1;
+            const dir = isX ? Math.sign(dx) : Math.sign(dy);
+            
+            for (let i = 0; i < step; i++) {
+                if (isX) { if (x === x2) break; x += dir; }
+                else { if (y === y2) break; y += dir; }
+                this.grid[y][x] = 0;
             }
-        } else {
-            if (Math.random() < 0.5) { drawH(y1, x1, x2); drawV(x2, y1, y2); }
-            else { drawV(x1, y1, y2); drawH(y2, x1, x2); }
         }
     }
 

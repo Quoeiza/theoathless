@@ -637,13 +637,12 @@ export default class RenderSystem {
         // Non-walls never block
         if (t !== 1 && t !== 5) return false;
 
-        // Check for Void Edge (Walkable Roof Rim)
-        // Condition: North is Floor AND Not a Front Face
+        // Check for Walkable Roof Rim (Non-Collidable Wall)
+        // Logic mirrors GridSystem.isWalkable special case
         if (y > 0) {
             const n = grid[y-1][x];
             if (this.isFloor(n)) {
                 let isFrontFace = false;
-                // Scan downwards (Limit 2)
                 for (let dy = 1; dy <= 2; dy++) {
                     if (y + dy >= grid.length) break;
                     const val = grid[y+dy][x];
@@ -651,10 +650,10 @@ export default class RenderSystem {
                         isFrontFace = true;
                         break;
                     }
-                    if (val !== 1 && val !== 5) break; // Obstructed
+                    if (val !== 1 && val !== 5) break;
                 }
                 
-                // If NOT a front face, it is a walkable rim -> Treat as floor (Non-blocking)
+                // If NOT a front face, it is a walkable rim -> No Shadow
                 if (!isFrontFace) return false;
             }
         }
