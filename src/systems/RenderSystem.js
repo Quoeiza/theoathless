@@ -359,7 +359,7 @@ export default class RenderSystem {
             }
 
             // Shadow
-            this.ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            this.ctx.fillStyle = 'rgba(20, 19, 31, 0.6)';
             this.ctx.beginPath();
             this.ctx.ellipse(screenX + (this.tileSize * 0.5), screenY + (this.tileSize * 0.875), this.tileSize * 0.3125, this.tileSize * 0.125, 0, 0, Math.PI * 2);
             this.ctx.fill();
@@ -703,7 +703,7 @@ export default class RenderSystem {
         // 1. Clear & Draw Ambient Darkness (High Contrast)
         ctx.globalCompositeOperation = 'source-over';
         ctx.clearRect(0, 0, w, h);
-        ctx.fillStyle = 'rgba(5, 5, 12, 0.94)'; // Grimdark ambient
+        ctx.fillStyle = 'rgba(20, 19, 31, 0.9)'; // Grimdark ambient
         ctx.fillRect(0, 0, w, h);
 
         if (!playerVisual) return;
@@ -740,7 +740,7 @@ export default class RenderSystem {
         
         // Draw Shadow Volumes with Blur
         sCtx.globalCompositeOperation = 'source-over';
-        sCtx.fillStyle = 'rgba(5, 5, 12, 0.94)'; // Match ambient
+        sCtx.fillStyle = 'rgba(20, 19, 31, 0.9)'; // Match ambient
         sCtx.filter = 'blur(6px)'; // Soft Shadows
         
         const iPx = Math.floor(px);
