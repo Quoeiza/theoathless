@@ -175,8 +175,26 @@ export default class GridSystem {
             const dir = isX ? Math.sign(dx) : Math.sign(dy);
             
             for (let i = 0; i < step; i++) {
-                if (isX) { if (x === x2) break; x += dir; }
-                else { if (y === y2) break; y += dir; }
+                if (isX) { 
+                    if (x === x2) break; 
+                    x += dir; 
+                    // Prevent horizontal corridors from being 1 tile away vertically from other floors
+                    if (y >= 2 && this.grid[y-2][x] === 0) {
+                        this.grid[y-1][x] = 0;
+                    } else if (y >= 3 && this.grid[y-3][x] === 0) {
+                        this.grid[y-1][x] = 0;
+                        this.grid[y-2][x] = 0;
+                    }
+                    if (y <= this.height - 3 && this.grid[y+2][x] === 0) {
+                        this.grid[y+1][x] = 0;
+                    } else if (y <= this.height - 4 && this.grid[y+3][x] === 0) {
+                        this.grid[y+1][x] = 0;
+                        this.grid[y+2][x] = 0;
+                    }
+                } else { 
+                    if (y === y2) break; 
+                    y += dir; 
+                }
                 this.grid[y][x] = 0;
             }
         }
