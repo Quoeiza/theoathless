@@ -769,8 +769,12 @@ export default class RenderSystem {
                     }
                 }
 
-                // 2. Casters: Only Front Faces (Vertical Walls) cast shadows.
-                if (isFrontFace) {
+                // 2. Casters: Only Colliding Walls cast shadows.
+                // We use GridSystem to determine collision, ensuring visual consistency with physics.
+                // This excludes "Roof Rims" (which are walls but walkable) from casting shadows.
+                const isColliding = this.gridSystem ? !this.gridSystem.isWalkable(x, y) : isWall;
+
+                if (isColliding) {
                     if (casterSeg) {
                         casterSeg.w++;
                     } else {
