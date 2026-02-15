@@ -8,6 +8,7 @@ export const dungeonTilesetConfig = {
     name: 'Dungeon',
     tileSize: 48,
     sheetWidth: 33, 
+    floorSheetWidth: 38,
     assets: {
         floor: './assets/images/dungeon/A2_Terrain_Misc.png',
         wall: './assets/images/dungeon/A4_Walls_And_Edges.png',
@@ -17,6 +18,41 @@ export const dungeonTilesetConfig = {
         'dark': 17,
         'mossy': 165,
         'volcanic': 1832
+    },
+    floorThemes: {
+        'rocky': 0,
+        'dark': 13,
+        'volcanic': 26,
+        'mossy': 190,
+        'floor_4': 203,
+        'floor_5': 216,
+        'floor_6': 380,
+        'floor_7': 393,
+        'floor_8': 406,
+        'floor_9': 570,
+        'floor_10': 583,
+        'floor_11': 596,
+        'floor_12': 760,
+        'floor_13': 773,
+        'floor_14': 786,
+        'floor_15': 950,
+        'floor_16': 963,
+        'floor_17': 976,
+        'floor_18': 1140,
+        'floor_19': 1153,
+        'floor_20': 1166,
+        'floor_21': 1330,
+        'floor_22': 1343,
+        'floor_23': 1356,
+        'floor_24': 1520,
+        'floor_25': 1533,
+        'floor_26': 1546,
+        'floor_27': 1710,
+        'floor_28': 1723,
+        'floor_29': 1736,
+        'floor_30': 1900,
+        'floor_31': 1913,
+        'floor_32': 1926
     },
     tiles: {
         floor: { sx: 0, sy: 0 }, 
@@ -88,6 +124,56 @@ const WALL_DATA = [
     { id: 68, w: [1, 0, 0, 0, 0, 0, 1, 1] }
 ];
 
+// FLOOR: Terrain / Ground
+const FLOOR_DATA = [
+    { id: 0, w: [0, 0, 0, 0, 1, 0, 0, 0] },
+    { id: 1, w: [0, 0, 1, 0, 1, 0, 0, 0] },
+    { id: 2, w: [0, 0, 1, 0, 1, 0, 1, 0] },
+    { id: 3, w: [0, 0, 0, 0, 1, 0, 1, 0] },
+    { id: 4, w: [1, 0, 1, 0, 1, 0, 1, 1] },
+    { id: 5, w: [0, 0, 1, 1, 1, 0, 1, 0] },
+    { id: 6, w: [0, 0, 1, 0, 1, 1, 1, 0] },
+    { id: 7, w: [1, 1, 1, 0, 1, 0, 1, 0] },
+    { id: 8, w: [0, 0, 1, 1, 1, 0, 0, 0] },
+    { id: 9, w: [1, 0, 1, 1, 1, 1, 1, 0] },
+    { id: 10, w: [0, 0, 1, 1, 1, 1, 1, 0] },
+    { id: 11, w: [0, 0, 0, 0, 1, 1, 1, 0] },
+    { id: 38, w: [1, 0, 0, 0, 1, 0, 0, 0] },
+    { id: 39, w: [1, 0, 1, 0, 1, 0, 0, 0] },
+    { id: 40, w: [1, 0, 1, 0, 1, 0, 1, 0] },
+    { id: 41, w: [1, 0, 0, 0, 1, 0, 1, 0] },
+    { id: 42, w: [1, 0, 1, 1, 1, 0, 0, 0] },
+    { id: 43, w: [1, 1, 1, 1, 1, 1, 1, 0] },
+    { id: 44, w: [1, 0, 1, 1, 1, 1, 1, 1] },
+    { id: 45, w: [1, 0, 0, 0, 1, 1, 1, 0] },
+    { id: 46, w: [1, 1, 1, 1, 1, 0, 0, 0] },
+    { id: 47, w: [1, 1, 1, 0, 1, 1, 1, 0] },
+    { id: 49, w: [1, 0, 1, 0, 1, 1, 1, 1] },
+    { id: 76, w: [1, 0, 0, 0, 0, 0, 0, 0] },
+    { id: 77, w: [1, 0, 1, 0, 0, 0, 0, 0] },
+    { id: 78, w: [1, 0, 1, 0, 0, 0, 1, 0] },
+    { id: 79, w: [1, 0, 0, 0, 0, 0, 1, 0] },
+    { id: 80, w: [1, 1, 1, 0, 1, 0, 0, 0] },
+    { id: 81, w: [1, 1, 1, 1, 1, 0, 1, 1] },
+    { id: 82, w: [1, 1, 1, 0, 1, 1, 1, 1] },
+    { id: 83, w: [1, 0, 0, 0, 1, 0, 1, 1] },
+    { id: 84, w: [1, 1, 1, 1, 1, 0, 1, 0] },
+    { id: 85, w: [1, 1, 1, 1, 1, 1, 1, 1] },
+    { id: 86, w: [1, 0, 1, 1, 1, 0, 1, 1] },
+    { id: 87, w: [1, 0, 0, 0, 1, 1, 1, 1] },
+    { id: 115, w: [0, 0, 1, 0, 0, 0, 0, 0] },
+    { id: 116, w: [0, 0, 1, 0, 0, 0, 1, 0] },
+    { id: 117, w: [0, 0, 0, 0, 0, 0, 1, 0] },
+    { id: 118, w: [1, 0, 1, 0, 1, 1, 1, 0] },
+    { id: 119, w: [1, 1, 1, 0, 0, 0, 1, 0] },
+    { id: 120, w: [1, 0, 1, 0, 0, 0, 1, 1] },
+    { id: 121, w: [1, 0, 1, 1, 1, 0, 1, 0] },
+    { id: 122, w: [1, 1, 1, 0, 0, 0, 0, 0] },
+    { id: 123, w: [1, 1, 1, 0, 0, 0, 1, 1] },
+    { id: 124, w: [1, 1, 1, 0, 1, 0, 1, 1] },
+    { id: 125, w: [1, 0, 0, 0, 0, 0, 1, 1] }
+];
+
 export class TileMapManager {
     constructor(config = dungeonTilesetConfig) {
         this.config = config;
@@ -97,6 +183,7 @@ export class TileMapManager {
         
         this.voidMap = this.buildLookup(VOID_DATA);
         this.wallMap = this.buildLookup(WALL_DATA);
+        this.floorMap = this.buildLookup(FLOOR_DATA);
     }
 
     buildLookup(data) {
@@ -180,7 +267,7 @@ export class TileMapManager {
 
     /**
      * Calculates neighbors based on the context.
-     * @param mode 'VOID' or 'FACE'
+     * @param mode 'VOID', 'FACE', or 'FLOOR'
      */
     getWangID(map, x, y, mode) {
         const check = (dx, dy) => {
@@ -191,6 +278,10 @@ export class TileMapManager {
                 // Voids connect to other Voids. 
                 // Everything else (Face or Floor) is a boundary (0).
                 return this.shouldDrawVoid(map, nx, ny) ? 1 : 0;
+            } else if (mode === 'FLOOR') {
+                // Floors (0) connect to Floors (0).
+                // Walls (1) are boundaries (0).
+                return this.getTileVal(map, nx, ny) === 0 ? 1 : 0;
             } else {
                 // Faces connect to any solid Wall.
                 // This keeps the pillar structure solid.
@@ -221,12 +312,33 @@ export class TileMapManager {
     drawFloor(ctx, map, viewBounds) {
         if (!this.assets.floor) return;
         const ts = this.tileSize;
+        const sheetW = this.config.floorSheetWidth || 38;
+        const themeOffset = (this.config.floorThemes && this.config.floorThemes[this.currentTheme]) !== undefined 
+            ? this.config.floorThemes[this.currentTheme] 
+            : 0;
         const { startCol, endCol, startRow, endRow } = viewBounds;
 
         for (let y = startRow; y <= endRow; y++) {
             for (let x = startCol; x <= endCol; x++) {
                 if (y < 0 || y >= map.length || x < 0 || x >= map[0].length) continue;
-                ctx.drawImage(this.assets.floor, 0, 0, ts, ts, x * ts, y * ts, ts, ts);
+                
+                let tileID = 85; // Default Center Floor
+
+                // If it is a Floor tile (0), calculate Wang ID
+                if (this.getTileVal(map, x, y) === 0) {
+                    const wangID = this.getWangID(map, x, y, 'FLOOR');
+                    this.canonicalizeWang(wangID);
+                    const key = wangID.join(',');
+                    if (this.floorMap.has(key)) {
+                        tileID = this.floorMap.get(key);
+                    }
+                }
+
+                const finalID = tileID + themeOffset;
+                const sheetX = (finalID % sheetW) * ts;
+                const sheetY = Math.floor(finalID / sheetW) * ts;
+                
+                ctx.drawImage(this.assets.floor, sheetX, sheetY, ts, ts, x * ts, y * ts, ts, ts);
             }
         }
     }
