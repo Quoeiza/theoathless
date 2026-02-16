@@ -274,7 +274,7 @@ export default class GridSystem {
             if (y0 < 0 || y0 >= this.height || x0 < 0 || x0 >= this.width) return false;
 
             // Check wall (blocking)
-            if (this.grid[y0][x0] === 1 || this.grid[y0][x0] === 5) return false;
+            if (!this.isWalkable(x0, y0)) return false;
 
             let e2 = 2 * err;
             if (e2 > -dy) { err -= dy; x0 += sx; }

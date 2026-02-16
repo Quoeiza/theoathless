@@ -311,7 +311,8 @@ export default class RenderSystem {
                     moveStartTime: 0,
                     attackStart: 0, flashStart: 0,
                     bumpStart: 0, bumpDir: null,
-                    lastFacingX: -1 // Default Left
+                    lastFacingX: -1, // Default Left
+                    opacity: 0 // Start invisible and fade in
                 };
                 this.visualEntities.set(id, visual);
             }
@@ -341,12 +342,19 @@ export default class RenderSystem {
             }
 
             // Line of Sight Check
-            let isVisible = true;
+            let hasLOS = true;
             if (localPlayer && id !== localPlayerId && this.gridSystem) {
-                isVisible = this.gridSystem.hasLineOfSight(localPlayer.x, localPlayer.y, pos.x, pos.y);
+                hasLOS = this.gridSystem.hasLineOfSight(localPlayer.x, localPlayer.y, pos.x, pos.y);
             }
 
-            if (isVisible) renderList.push({ id, pos, visual });
+            // Fading Logic
+            const targetOpacity = hasLOS ? 1.0 : 0.0;
+            visual.opacity += (targetOpacity - visual.opacity) * 0.1;
+            if (Math.abs(targetOpacity - visual.opacity) < 0.01) visual.opacity = targetOpacity;
+
+            if (visual.opacity > 0.01) {
+                renderList.push({ id, pos, visual });
+            }
         });
 
         // 3. Depth Sort (Y-sort)
@@ -362,12 +370,12 @@ export default class RenderSystem {
             const hopOffset = -Math.sin(Math.PI * Math.max(Math.abs(visual.x % 1), Math.abs(visual.y % 1))) * (this.tileSize * 0.125);
 
             // Stealth Check
+            let alpha = visual.opacity;
             if (pos.invisible) {
                 if (id !== localPlayerId) continue; // Completely invisible to others
-                ctx.globalAlpha = 0.5; // Ghostly for self
-            } else {
-                ctx.globalAlpha = 1.0;
+                alpha *= 0.5; // Ghostly for self
             }
+            ctx.globalAlpha = alpha;
 
             // Calculate Attack Shove Offset
             let offsetX = 0;
@@ -726,8 +734,9 @@ export default class RenderSystem {
 
     isLightBlocking(grid, x, y) {
         // LINKED SYSTEM: Use TileMapManager for visual consistency.
-        if (this.tileMapManager) {
-            return this.tileMapManager.getTileVal(grid, x, y) === 1;
+        // Use GridSystem collision logic for visual consistency with LOS.
+        if (this.gridSystem) {
+            return !this.gridSystem.isWalkable(x, y);
         }
 
         // Fallback
@@ -1097,7 +1106,10 @@ export default class RenderSystem {
                     targetX: myPos.x, targetY: myPos.y,
                     startX: myPos.x, startY: myPos.y,
                     moveStartTime: 0,
-                    attackStart: 0, flashStart: 0 
+                    attackStart: 0, flashStart: 0,
+                    bumpStart: 0, bumpDir: null,
+                    lastFacingX: -1,
+                    opacity: 1
                 };
                 this.visualEntities.set(localPlayerId, visual);
             }
