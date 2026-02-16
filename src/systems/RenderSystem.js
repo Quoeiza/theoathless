@@ -478,19 +478,20 @@ export default class RenderSystem {
 
                 ctx.translate(centerX, centerY);
 
+                const spriteW = img.width;
+                const spriteH = img.height;
+                let drawX = Math.floor(-spriteW / 2);
+
                 // Sprite defaults to Left. Flip if facing Right.
                 if (facingX > 0) {
                     ctx.scale(-1, 1);
+                    drawX -= 1; // Fix 1px offset when flipped
                 }
 
-                // Draw Sprite Anchored to Bottom-Center of Tile
-                // Use natural image size to allow extending upwards
-                const spriteW = img.width;
-                const spriteH = img.height;
                 
                 // Calculate Y offset: Bottom of sprite aligns with bottom of tile (+tileSize/2 relative to center)
                 const drawY = (this.tileSize / 2) - spriteH;
-                ctx.drawImage(img, Math.floor(-spriteW / 2), Math.floor(drawY), spriteW, spriteH);
+                ctx.drawImage(img, drawX, Math.floor(drawY), spriteW, spriteH);
                 ctx.restore();
             } else {
                 // --- Fallback Procedural Rendering ---
@@ -776,7 +777,7 @@ export default class RenderSystem {
         }
     }
 
-    drawShadowLayer(grid, playerVisual) {
+    drawShadowLayer(grid, playerVisual, entities) {
         if (!playerVisual) return;
 
         const sCtx = this.shadowCtx;
@@ -911,6 +912,93 @@ export default class RenderSystem {
             const tx = Math.floor((wall.x * ts) - this.camera.x);
             const ty = Math.floor((wall.y * ts) - this.camera.y);
             sCtx.fillRect(tx, ty, wall.w * ts, ts);
+        }
+
+        // C. Mask out Entities (Prevent shadows on sprites)
+        if (entities) {
+            this.visualEntities.forEach((visual, id) => {
+                if (entities.has(id)) {
+                    const pos = entities.get(id);
+
+                    // Calculate Mask Opacity based on Visibility & Stealth
+                    let alpha = visual.opacity;
+                    if (pos.invisible) {
+                        // If invisible and NOT the local player (compared by reference to playerVisual)
+                        if (visual !== playerVisual) {
+                            alpha = 0;
+                        } else {
+                            alpha *= 0.5;
+                        }
+                    }
+
+                    // Skip if effectively invisible to prevent "ghost" outlines in darkness
+                    if (alpha < 0.05) return;
+
+                    // Calculate Offsets (Match drawEntities for alignment)
+                    const now = Date.now();
+                    let offsetX = 0;
+                    let offsetY = 0;
+                    if (now - visual.attackStart < 150) {
+                        const progress = (now - visual.attackStart) / 150;
+                        const shove = Math.sin(progress * Math.PI) * (ts * 0.25);
+                        if (pos.facing) {
+                            offsetX = pos.facing.x * shove;
+                            offsetY = pos.facing.y * shove;
+                        }
+                    }
+
+                    let bumpX = 0;
+                    let bumpY = 0;
+                    if (now - visual.bumpStart < 150) {
+                        const progress = (now - visual.bumpStart) / 150;
+                        const bumpDist = Math.sin(progress * Math.PI) * (ts * 0.15);
+                        if (visual.bumpDir) {
+                            bumpX = visual.bumpDir.x * bumpDist;
+                            bumpY = visual.bumpDir.y * bumpDist;
+                        }
+                    }
+
+                    const tx = Math.floor((visual.x * ts) - Math.floor(this.camera.x) + offsetX + bumpX);
+                    const ty = Math.floor((visual.y * ts) - Math.floor(this.camera.y) + offsetY + bumpY);
+                    
+                    // Determine Sprite
+                    let spriteKey = null;
+                    if (pos.type === 'player') spriteKey = 'knight';
+                    if (pos.type === 'skeleton') spriteKey = 'skelly';
+                    
+                    const img = this.assetLoader ? this.assetLoader.getImage(spriteKey) : null;
+
+                    sCtx.save();
+                    sCtx.globalAlpha = alpha; // Apply opacity to the mask
+
+                    if (img) {
+                        const hopOffset = -Math.sin(Math.PI * Math.max(Math.abs(visual.x % 1), Math.abs(visual.y % 1))) * (ts * 0.125);
+                        const centerX = tx + (ts * 0.5);
+                        const centerY = ty + (ts * 0.5) + hopOffset;
+
+                        sCtx.translate(centerX, centerY);
+
+                        const facingX = visual.lastFacingX !== undefined ? visual.lastFacingX : (pos.facing ? pos.facing.x : -1);
+                        const spriteW = img.width;
+                        const spriteH = img.height;
+                        let drawX = Math.floor(-spriteW / 2);
+
+                        if (facingX > 0) {
+                            sCtx.scale(-1, 1);
+                            drawX -= 1; // Fix 1px offset when flipped
+                        }
+
+                        const drawY = (ts / 2) - spriteH;
+                        
+                        sCtx.drawImage(img, drawX, Math.floor(drawY), spriteW, spriteH);
+                    } else {
+                        sCtx.beginPath();
+                        sCtx.arc(tx + (ts * 0.5), ty + (ts * 0.5), ts * 0.4, 0, Math.PI * 2);
+                        sCtx.fill();
+                    }
+                    sCtx.restore();
+                }
+            });
         }
 
         sCtx.restore();
@@ -1148,7 +1236,7 @@ export default class RenderSystem {
         this.drawLoot(loot);
         
         // 1. Update Shadow Buffer (Offscreen)
-        this.drawShadowLayer(grid, this.visualEntities.get(localPlayerId));
+        this.drawShadowLayer(grid, this.visualEntities.get(localPlayerId), entities);
 
         // 2. Draw Entities & Projectiles (Before Roofs/Ambient)
         this.drawProjectiles(projectiles);
