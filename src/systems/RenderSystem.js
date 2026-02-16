@@ -294,7 +294,7 @@ export default class RenderSystem {
         visual.recoilStart = Date.now();
 
         // Spawn Blood Particles
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < 15; i++) {
             this.spawnBloodParticle(visual.x, visual.y, ndx, ndy);
         }
     }
@@ -342,7 +342,7 @@ export default class RenderSystem {
         
         p.life = 1.0;
         p.maxLife = 1.0;
-        p.size = 0.05 + Math.random() * 0.05;
+        p.size = 0.02 + Math.random() * 0.03;
         this.bloodParticles.push(p);
     }
 
@@ -451,10 +451,13 @@ export default class RenderSystem {
             
             // Idle Animation (Breathing & Swaying)
             let scaleY = 1;
+            let scaleX = 1;
             let rotation = 0;
             if (!visual.isDying) {
-                scaleY = 1 + Math.sin(now * 0.005 + visual.idlePhase) * 0.03;
-                rotation = Math.sin(now * 0.003 + visual.idlePhase) * 0.02;
+                // Subtle breathing: Slower speed, slight chest expansion (X), reduced vertical bob (Y)
+                const breath = Math.sin(now * 0.003 + visual.idlePhase);
+                scaleY = 1 + (breath * 0.012); 
+                scaleX = 1 + (breath * 0.006);
             }
 
             // Recoil Offset
@@ -592,7 +595,7 @@ export default class RenderSystem {
                 }
 
                 ctx.rotate(rotation);
-                ctx.scale(1, scaleY);
+                ctx.scale(scaleX, scaleY);
 
                 const drawY = -spriteH; // Draw upwards from feet
 
@@ -1148,10 +1151,12 @@ export default class RenderSystem {
                         
                         // Idle Animation (Breathing & Swaying)
                         let scaleY = 1;
+                        let scaleX = 1;
                         let rotation = 0;
                         if (!visual.isDying) {
-                            scaleY = 1 + Math.sin(now * 0.005 + visual.idlePhase) * 0.03;
-                            rotation = Math.sin(now * 0.003 + visual.idlePhase) * 0.02;
+                            const breath = Math.sin(now * 0.003 + visual.idlePhase);
+                            scaleY = 1 + (breath * 0.012);
+                            scaleX = 1 + (breath * 0.006);
                         }
 
                         const centerX = tx + (ts * 0.5);
@@ -1170,7 +1175,7 @@ export default class RenderSystem {
                         }
 
                         sCtx.rotate(rotation);
-                        sCtx.scale(1, scaleY);
+                        sCtx.scale(scaleX, scaleY);
 
                         const drawY = -spriteH; // Draw upwards from feet
                         
