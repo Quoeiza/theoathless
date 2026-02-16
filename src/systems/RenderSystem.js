@@ -31,7 +31,7 @@ export default class RenderSystem {
         this.tileMapManager = new TileMapManager(dungeonTilesetConfig);
 
         // Camera
-        this.camera = { x: 0, y: 0 };
+        this.camera = { x: 0, y: 0, isReady: false };
         
         // Visual Effects
         this.effects = []; // { x, y, type, startTime, duration }
@@ -529,10 +529,19 @@ export default class RenderSystem {
 
     updateCamera(targetX, targetY) {
         // Smooth Camera Follow
-        const targetCamX = (targetX * this.tileSize) - (this.canvas.width / (2 * this.scale));
-        const targetCamY = (targetY * this.tileSize) - (this.canvas.height / (2 * this.scale));
+        // Center on the tile (add half tile size)
+        const centerOffset = this.tileSize * 0.5;
+        const targetCamX = ((targetX * this.tileSize) + centerOffset) - (this.canvas.width / (2 * this.scale));
+        const targetCamY = ((targetY * this.tileSize) + centerOffset) - (this.canvas.height / (2 * this.scale));
         
         if (!Number.isFinite(targetCamX) || !Number.isFinite(targetCamY)) return;
+
+        // Snap camera on first update to prevent zooming from 0,0
+        if (!this.camera.isReady) {
+            this.camera.x = targetCamX;
+            this.camera.y = targetCamY;
+            this.camera.isReady = true;
+        }
 
         // Smooth Lerp Camera
         this.camera.x += (targetCamX - this.camera.x) * 0.1;
