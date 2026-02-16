@@ -1003,7 +1003,13 @@ class Game {
             }
         } else {
             // Terrain: Pathfind
-            const path = this.gridSystem.findPath(pos.x, pos.y, gridX, gridY);
+            let path = this.gridSystem.findPath(pos.x, pos.y, gridX, gridY);
+            
+            // Fallback: Straight line attempt if pathfinding failed (e.g. target is wall)
+            if (!path) {
+                path = this.getStraightPath(pos.x, pos.y, gridX, gridY);
+            }
+
             if (path) {
                 this.state.autoPath = path;
             } else {
@@ -1011,6 +1017,35 @@ class Game {
                 this.state.autoPath = [];
             }
         }
+    }
+
+    getStraightPath(x0, y0, x1, y1) {
+        const path = [];
+        let x = Math.round(x0);
+        let y = Math.round(y0);
+        const tx = Math.round(x1);
+        const ty = Math.round(y1);
+
+        const dx = Math.abs(tx - x);
+        const dy = Math.abs(ty - y);
+        const sx = (x < tx) ? 1 : -1;
+        const sy = (y < ty) ? 1 : -1;
+        let err = dx - dy;
+
+        let iterations = 0;
+        const maxIterations = 100; 
+
+        while (true) {
+            if (x === tx && y === ty) break;
+            if (iterations++ > maxIterations) break;
+
+            let e2 = 2 * err;
+            if (e2 > -dy) { err -= dy; x += sx; }
+            if (e2 < dx) { err += dx; y += sy; }
+
+            path.push({ x, y });
+        }
+        return path;
     }
 
     handleMouseMove(data) {
