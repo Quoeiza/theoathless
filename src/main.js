@@ -795,7 +795,7 @@ class Game {
                     this.syncManager.addSnapshot(data.payload);
                 } else if (data.type === 'INIT_WORLD') {
                     console.log("Client: Received INIT_WORLD", data.payload);
-                    this.gridSystem.grid = data.payload.grid;
+                    this.gridSystem.setGrid(data.payload.grid);
                     
                     // Stop the handshake retry loop
                     if (this.state.handshakeInterval) {

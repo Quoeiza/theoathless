@@ -462,6 +462,20 @@ export default class GridSystem {
         }
     }
 
+    setGrid(grid) {
+        if (!grid || !grid.length) return;
+        this.grid = grid;
+        this.height = grid.length;
+        this.width = grid[0].length;
+        
+        // Rebuild spatial map as keys depend on width
+        this.spatialMap.clear();
+        for (const [id, pos] of this.entities) {
+            this.spatialMap.set(this.getKey(pos.x, pos.y), id);
+        }
+        this.revision++;
+    }
+
     spawnExtractionZone() {
         const pos = this.getSpawnPoint();
         this.setTile(pos.x, pos.y, 9); // 9 = Extraction Zone
