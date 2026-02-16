@@ -1242,26 +1242,27 @@ export default class RenderSystem {
 
         // Apply Ambient Layer to Main Canvas
         this.ctx.drawImage(this.lightCanvas, 0, 0);
+    }
 
-        // Draw Warm Overlay
-        if (playerVisual) {
-            const px = playerVisual.x;
-            const py = playerVisual.y;
-            const sx = (px * ts) - this.camera.x + (ts * 0.5);
-            const sy = (py * ts) - this.camera.y + (ts * 0.5);
-            const screenRadius = this.lightRadius;
+    drawTorchOverlay(playerVisual) {
+        if (!playerVisual) return;
+        const ts = this.tileSize;
+        const px = playerVisual.x;
+        const py = playerVisual.y;
+        const sx = (px * ts) - this.camera.x + (ts * 0.5);
+        const sy = (py * ts) - this.camera.y + (ts * 0.5);
+        const screenRadius = this.lightRadius;
 
-            this.ctx.save();
-            this.ctx.globalCompositeOperation = 'overlay';
-            const colorGrad = this.ctx.createRadialGradient(sx, sy, 0, sx, sy, screenRadius * 0.8);
-            colorGrad.addColorStop(0, 'rgba(255, 160, 60, 0.5)'); // Warm Orange
-            colorGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-            this.ctx.fillStyle = colorGrad;
-            this.ctx.beginPath();
-            this.ctx.arc(sx, sy, screenRadius, 0, Math.PI * 2);
-            this.ctx.fill();
-            this.ctx.restore();
-        }
+        this.ctx.save();
+        this.ctx.globalCompositeOperation = 'overlay';
+        const colorGrad = this.ctx.createRadialGradient(sx, sy, 0, sx, sy, screenRadius * 0.8);
+        colorGrad.addColorStop(0, 'rgba(255, 160, 60, 0.5)'); // Warm Orange
+        colorGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        this.ctx.fillStyle = colorGrad;
+        this.ctx.beginPath();
+        this.ctx.arc(sx, sy, screenRadius, 0, Math.PI * 2);
+        this.ctx.fill();
+        this.ctx.restore();
     }
 
     drawShadowVolume(ctx, gx, gy, gw, gh, lx, ly, radius, lOffX = 0.5, lOffY = 0.5) {
@@ -1460,6 +1461,9 @@ export default class RenderSystem {
         sCtx.restore();
 
         this.ctx.drawImage(this.shadowCanvas, 0, 0);
+
+        // 6. Draw Torch Overlay (New Step)
+        this.drawTorchOverlay(this.visualEntities.get(localPlayerId));
 
         this.ctx.restore(); // Restore shake
 
