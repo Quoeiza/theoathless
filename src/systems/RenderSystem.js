@@ -504,9 +504,20 @@ export default class RenderSystem {
             const screenX = Math.floor((visual.x * this.tileSize) - Math.floor(this.camera.x) + offsetX + bumpX + recoilOffX);
             const screenY = Math.floor((visual.y * this.tileSize) - Math.floor(this.camera.y) + offsetY + hopOffset + bumpY + recoilOffY);
 
+            // Resolve HP from CombatSystem if missing on entity (e.g. local GridSystem entity)
+            let hp = pos.hp;
+            let maxHp = pos.maxHp;
+            if (hp === undefined && this.combatSystem) {
+                const stats = this.combatSystem.getStats(id);
+                if (stats) {
+                    hp = stats.hp;
+                    maxHp = stats.maxHp;
+                }
+            }
+
             // Health Bar (Curved under sprite)
-            if (pos.hp !== undefined && pos.maxHp !== undefined && pos.hp > 0) {
-                const hpRatio = pos.maxHp > 0 ? Math.max(0, pos.hp / pos.maxHp) : 0;
+            if (hp !== undefined && maxHp !== undefined && hp > 0) {
+                const hpRatio = maxHp > 0 ? Math.max(0, hp / maxHp) : 0;
                 const cx = screenX + (this.tileSize * 0.5);
                 const cy = screenY + (this.tileSize * 1); // Position slightly below feet
                 
@@ -819,7 +830,9 @@ export default class RenderSystem {
         this.floatingTexts.push({
             x, y, text, color,
             startTime: Date.now(),
-            duration: 1000
+            duration: 1000,
+            driftX: (Math.random() - 0.5) * this.tileSize,
+            driftY: (this.tileSize * 0.5) + Math.random() * (this.tileSize * 0.5)
         });
     }
 
@@ -834,8 +847,12 @@ export default class RenderSystem {
         this.floatingTexts.forEach(t => {
             const elapsed = now - t.startTime;
             const progress = Math.min(1, elapsed / t.duration);
-            const screenX = (t.x * this.tileSize) - Math.floor(this.camera.x) + (this.tileSize / 2);
-            const screenY = (t.y * this.tileSize) - Math.floor(this.camera.y) - (progress * (this.tileSize * 1.25)); // Float up faster
+            
+            const startX = (t.x * this.tileSize) - Math.floor(this.camera.x) + (this.tileSize / 2);
+            const startY = (t.y * this.tileSize) - Math.floor(this.camera.y) - (this.tileSize * 0.8);
+
+            const screenX = startX + (t.driftX * progress);
+            const screenY = startY - (t.driftY * progress);
 
             // Pop effect
             let scale = 1.0;
@@ -843,7 +860,7 @@ export default class RenderSystem {
             else scale = 1.4 - ((progress - 0.2) * 0.5);
 
             this.ctx.fillStyle = t.color;
-            this.ctx.font = `bold ${Math.max(12, Math.floor(16 * scale))}px "Courier New"`;
+            this.ctx.font = `bold ${Math.max(8, Math.floor(10 * scale))}px "Courier New"`;
             this.ctx.globalAlpha = 1 - Math.pow(progress, 3); // Fade out
             this.ctx.fillText(t.text, screenX, screenY);
             this.ctx.globalAlpha = 1.0;
@@ -1429,38 +1446,20 @@ export default class RenderSystem {
         this.drawWalls(grid, grid[0].length, grid.length);
         this.drawLoot(loot);
         
-        // 1. Update Shadow Buffer (Offscreen)
-        this.drawShadowLayer(grid, this.visualEntities.get(localPlayerId), entities);
-
         // 2. Draw Entities & Projectiles (Before Roofs/Ambient)
         this.drawProjectiles(projectiles);
-        this.drawEntities(entities, localPlayerId, 'REMOTE');
+        this.drawEntities(entities, localPlayerId, 'ALL');
         this.updateAndDrawParticles();
         this.drawEffects();
+
+        // 3. Update Shadow Buffer (Offscreen) - Moved after entities to use updated positions
+        this.drawShadowLayer(grid, this.visualEntities.get(localPlayerId), entities);
         
-        // 3. Draw Roofs (Occludes entities)
+        // 4. Draw Roofs (Occludes entities)
         this.drawRoof(grid, grid[0].length, grid.length);
 
-        // 4. Draw Ambient Darkness (Over Everything)
+        // 5. Draw Ambient Darkness (Over Everything)
         this.drawAmbientLayer(this.visualEntities.get(localPlayerId));
-
-        // 5. Draw Local Player (Bright, Occluded by Roofs)
-        // Reuse shadowCanvas as buffer to mask player against roofs
-        const sCtx = this.shadowCtx;
-        sCtx.save();
-        sCtx.clearRect(0, 0, this.shadowCanvas.width, this.shadowCanvas.height);
-        
-        this.drawEntities(entities, localPlayerId, 'LOCAL', sCtx);
-        
-        sCtx.globalCompositeOperation = 'destination-out';
-        const camX = Math.floor(this.camera.x);
-        const camY = Math.floor(this.camera.y);
-        sCtx.translate(-camX, -camY);
-        sCtx.drawImage(this.staticCacheTop, 0, 0);
-        sCtx.translate(camX, camY);
-        sCtx.restore();
-
-        this.ctx.drawImage(this.shadowCanvas, 0, 0);
 
         // 6. Draw Torch Overlay (New Step)
         this.drawTorchOverlay(this.visualEntities.get(localPlayerId));
