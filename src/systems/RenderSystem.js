@@ -307,7 +307,7 @@ export default class RenderSystem {
 
         // Spawn Blood Particles
         for (let i = 0; i < 15; i++) {
-            this.spawnBloodParticle(visual.x, visual.y, ndx, ndy);
+            this.spawnParticle(visual.x, visual.y, ndx, ndy, '#800');
         }
     }
 
@@ -340,12 +340,12 @@ export default class RenderSystem {
         }
     }
 
-    spawnBloodParticle(x, y, dirX, dirY) {
+    spawnParticle(x, y, dirX, dirY, color = '#800', speedOverride = null, sizeOverride = null) {
         const p = this.particlePool.pop() || { x:0, y:0, vx:0, vy:0, life:0, maxLife:0 };
         p.x = x + (Math.random() - 0.5) * 0.2;
         p.y = y + (Math.random() - 0.5) * 0.2;
         
-        const speed = 0.05 + Math.random() * 0.15;
+        const speed = speedOverride !== null ? speedOverride : (0.05 + Math.random() * 0.15);
         const spread = 0.8; // High spread
         
         // Mix directional velocity with random spread
@@ -354,7 +354,8 @@ export default class RenderSystem {
         
         p.life = 1.0;
         p.maxLife = 1.0;
-        p.size = 0.02 + Math.random() * 0.03;
+        p.size = sizeOverride !== null ? sizeOverride : (0.02 + Math.random() * 0.03);
+        p.color = color;
         this.bloodParticles.push(p);
     }
 
@@ -376,86 +377,102 @@ export default class RenderSystem {
         const viewH = this.canvas.height / this.scale;
         const margin = this.tileSize * 2; // Allow some overhang for sprites/shadows
 
-        // Prune visuals that no longer exist
-        for (const id of this.visualEntities.keys()) {
-            if (!entities.has(id)) {
-                const visual = this.visualEntities.get(id);
-                // Keep dying entities until animation finishes (1s)
-                if (!visual.isDying || (now - visual.deathStart > 1000)) {
-                    this.visualEntities.delete(id);
-                }
-            }
-        }
-
         // 2. Update Visual State & Prepare Render List
         this.renderList.length = 0;
         const renderList = this.renderList;
 
-        entities.forEach((pos, id) => {
-            if (drawMode === 'REMOTE' && id === localPlayerId) return;
-            if (drawMode === 'LOCAL' && id !== localPlayerId) return;
+        // Create a combined list of all entities we might need to render:
+        // - All current visual entities
+        // - Any new authoritative entities that don't have a visual yet
+        const idsToProcess = new Set(this.visualEntities.keys());
+        entities.forEach((_, id) => idsToProcess.add(id));
 
+        for (const id of idsToProcess) {
             let visual = this.visualEntities.get(id);
-            if (!visual) {
-                visual = { 
-                    x: pos.x, y: pos.y, 
-                    targetX: pos.x, targetY: pos.y,
-                    startX: pos.x, startY: pos.y,
-                    moveStartTime: 0,
-                    attackStart: 0, flashStart: 0,
-                    bumpStart: 0, bumpDir: null,
-                    lastFacingX: -1, // Default Left
-                    opacity: (id === localPlayerId) ? 1 : 0, // Start visible for self, fade in for others
-                    idlePhase: Math.random() * Math.PI * 2,
-                    recoilX: 0, recoilY: 0, recoilStart: 0,
-                    isDying: false, deathStart: 0,
-                    flashColor: '#ffffff'
+            const pos = entities.get(id); // Authoritative state from GridSystem
+
+            if (pos) {
+                // --- ENTITY IS ALIVE ---
+                if (drawMode === 'REMOTE' && id === localPlayerId) continue;
+                if (drawMode === 'LOCAL' && id !== localPlayerId) continue;
+
+                if (!visual) {
+                    visual = { 
+                        x: pos.x, y: pos.y, 
+                        targetX: pos.x, targetY: pos.y,
+                        startX: pos.x, startY: pos.y,
+                        moveStartTime: 0,
+                        attackStart: 0, flashStart: 0,
+                        bumpStart: 0, bumpDir: null,
+                        lastFacingX: -1, // Default Left
+                        opacity: (id === localPlayerId) ? 1 : 0, // Start visible for self, fade in for others
+                        idlePhase: Math.random() * Math.PI * 2,
+                        recoilX: 0, recoilY: 0, recoilStart: 0,
+                        isDying: false, deathStart: 0,
+                        flashColor: '#ffffff'
+                    };
+                    this.visualEntities.set(id, visual);
+                }
+
+                // Detect Position Change
+                if (pos.x !== visual.targetX || pos.y !== visual.targetY) {
+                    visual.startX = visual.x;
+                    visual.startY = visual.y; 
+                    visual.targetX = pos.x;
+                    visual.targetY = pos.y;
+                    visual.moveStartTime = now;
+                }
+
+                // Linear Interpolation over 250ms
+                if (!visual.isDying) {
+                    const moveDuration = 250;
+                    const t = Math.min(1, (now - visual.moveStartTime) / moveDuration);
+                    visual.x = visual.startX + (visual.targetX - visual.startX) * t;
+                    visual.y = visual.startY + (visual.targetY - visual.startY) * t;
+                }
+
+                // Cache static data needed for rendering after death
+                let type = pos.type;
+                if (!type && this.combatSystem) {
+                    const stats = this.combatSystem.getStats(id);
+                    if (stats) type = stats.type;
+                }
+                visual.type = type; // Cache it
+
+                // Optimization: View Frustum Culling
+                const screenX = (visual.x * this.tileSize) - camX;
+                const screenY = (visual.y * this.tileSize) - camY;
+                if (screenX < -margin || screenX > viewW + margin || screenY < -margin || screenY > viewH + margin) {
+                    continue;
+                }
+
+                // Line of Sight Check & Fading
+                let hasLOS = true;
+                if (localPlayer && id !== localPlayerId && this.gridSystem) {
+                    hasLOS = this.gridSystem.hasLineOfSight(localPlayer.x, localPlayer.y, pos.x, pos.y);
+                }
+                const targetOpacity = hasLOS ? 1.0 : 0.0;
+                visual.opacity += (targetOpacity - visual.opacity) * 0.1;
+                if (Math.abs(targetOpacity - visual.opacity) < 0.01) visual.opacity = targetOpacity;
+
+                if (visual.opacity > 0.01) {
+                    renderList.push({ id, pos, visual });
+                }
+            } else if (visual && visual.isDying && (now - visual.deathStart <= 1000)) {
+                // --- ENTITY IS DEAD, BUT ANIMATION IS PLAYING ---
+                // Create a fake `pos` object for the render loop, using cached visual data.
+                const fakePos = { 
+                    type: visual.type, 
+                    facing: { x: visual.lastFacingX, y: 0 }, 
+                    hp: 0, maxHp: 1, // Ensures no health bar is drawn
+                    invisible: false 
                 };
-                this.visualEntities.set(id, visual);
+                renderList.push({ id, pos: fakePos, visual });
+            } else {
+                // --- ENTITY IS GONE AND NOT ANIMATING ---
+                this.visualEntities.delete(id);
             }
-
-            // Detect Position Change
-            if (pos.x !== visual.targetX || pos.y !== visual.targetY) {
-                visual.startX = visual.x;
-                visual.startY = visual.y; 
-                visual.targetX = pos.x;
-                visual.targetY = pos.y;
-                visual.moveStartTime = now;
-            }
-
-            // Linear Interpolation over 250ms
-            // Stop updating position if dying to prevent snapping
-            if (!visual.isDying) {
-                const moveDuration = 250;
-                const t = Math.min(1, (now - visual.moveStartTime) / moveDuration);
-                visual.x = visual.startX + (visual.targetX - visual.startX) * t;
-                visual.y = visual.startY + (visual.targetY - visual.startY) * t;
-            }
-
-            // Optimization: View Frustum Culling
-            // If entity is completely off-screen, skip LOS check and rendering
-            const screenX = (visual.x * this.tileSize) - camX;
-            const screenY = (visual.y * this.tileSize) - camY;
-            
-            if (screenX < -margin || screenX > viewW + margin || screenY < -margin || screenY > viewH + margin) {
-                return; // Skip this entity
-            }
-
-            // Line of Sight Check
-            let hasLOS = true;
-            if (localPlayer && id !== localPlayerId && this.gridSystem) {
-                hasLOS = this.gridSystem.hasLineOfSight(localPlayer.x, localPlayer.y, pos.x, pos.y);
-            }
-
-            // Fading Logic
-            const targetOpacity = hasLOS ? 1.0 : 0.0;
-            visual.opacity += (targetOpacity - visual.opacity) * 0.1;
-            if (Math.abs(targetOpacity - visual.opacity) < 0.01) visual.opacity = targetOpacity;
-
-            if (visual.opacity > 0.01) {
-                renderList.push({ id, pos, visual });
-            }
-        });
+        }
 
         // 3. Depth Sort (Y-sort)
         renderList.sort((a, b) => {
@@ -641,19 +658,32 @@ export default class RenderSystem {
                 if (visual.isDying) {
                     const progress = (now - visual.deathStart) / 1000;
                     if (progress < 1) {
+                        // Death Effect: Grayscale + Darken
+                        ctx.filter = 'grayscale(100%) brightness(30%)';
+
                         const cropH = spriteH * progress;
                         // Draw only the bottom part
                         ctx.drawImage(img, 
                             0, cropH, spriteW, spriteH - cropH, 
                             drawX, drawY + cropH, spriteW, spriteH - cropH
                         );
+
+                        // Spawn Ash Particles at the dissolve line
+                        const spriteHeightInTiles = spriteH / this.tileSize;
+                        const dissolveY = visual.y - spriteHeightInTiles + (progress * spriteHeightInTiles);
+                        
+                        for(let i=0; i<2; i++) {
+                            const pX = visual.x + (Math.random() - 0.5) * 0.5;
+                            // Downward drift
+                            this.spawnParticle(pX, dissolveY, 0, 1, '#444', 0.02, 0.04);
+                        }
                     }
                 } else {
                     // Normal Draw
                     ctx.drawImage(img, drawX, drawY, spriteW, spriteH);
                 }
 
-                if (isFlashing) {
+                if (isFlashing || visual.isDying) {
                     ctx.filter = 'none';
                 }
 
@@ -806,7 +836,7 @@ export default class RenderSystem {
 
             const sx = (p.x * ts) - this.camera.x;
             const sy = (p.y * ts) - this.camera.y;
-            this.ctx.fillStyle = '#800';
+            this.ctx.fillStyle = p.color || '#800';
             this.ctx.fillRect(sx, sy, ts * p.size, ts * p.size);
         }
     }
@@ -1239,7 +1269,21 @@ export default class RenderSystem {
 
                         const drawY = -spriteH; // Draw upwards from feet
                         
-                        sCtx.drawImage(img, drawX, Math.floor(drawY), spriteW, spriteH);
+                        // Dissolve Logic (Top-Down) - Must match drawEntities
+                        if (visual.isDying) {
+                            const progress = (now - visual.deathStart) / 1000;
+                            if (progress < 1) {
+                                const cropH = spriteH * progress;
+                                // Draw only the bottom part of the mask
+                                sCtx.drawImage(img, 
+                                    0, cropH, spriteW, spriteH - cropH, 
+                                    drawX, Math.floor(drawY + cropH), spriteW, spriteH - cropH
+                                );
+                            }
+                        } else {
+                            // Normal Draw
+                            sCtx.drawImage(img, drawX, Math.floor(drawY), spriteW, spriteH);
+                        }
                     } else {
                         sCtx.beginPath();
                         sCtx.arc(tx + (ts * 0.5), ty + (ts * 0.5), ts * 0.4, 0, Math.PI * 2);
@@ -1516,11 +1560,11 @@ export default class RenderSystem {
         this.drawFloor(grid, grid[0].length, grid.length);
         this.drawWalls(grid, grid[0].length, grid.length);
         this.drawLoot(loot);
+        this.updateAndDrawParticles();
         
         // 2. Draw Entities & Projectiles (Before Roofs/Ambient)
         this.drawProjectiles(projectiles);
         this.drawEntities(entities, localPlayerId, 'ALL');
-        this.updateAndDrawParticles();
         this.drawEffects();
 
         // 3. Update Shadow Buffer (Offscreen) - Moved after entities to use updated positions
