@@ -57,7 +57,6 @@ export default class RenderSystem {
 
         this.bloodParticles = [];
         this.particlePool = [];
-        this.dustParticles = [];
 
         // Shadow Segment Pooling to reduce GC
         this.segmentPool = [];
@@ -226,8 +225,6 @@ export default class RenderSystem {
                 }
             }
         }
-
-        this.drawDust();
     }
 
     drawWalls(grid, width, height) {
@@ -859,20 +856,6 @@ export default class RenderSystem {
     }
 
     addEffect(x, y, type) {
-        if (type === 'dust') {
-            for (let i = 0; i < 5; i++) {
-                this.dustParticles.push({
-                    x: x + (Math.random() - 0.5) * 0.4,
-                    y: y + (Math.random() - 0.5) * 0.4 + 0.2,
-                    vx: (Math.random() - 0.5) * 0.01,
-                    vy: (Math.random() - 0.5) * 0.01,
-                    life: 1.0,
-                    decay: 0.01 + Math.random() * 0.02,
-                    size: 0.05 + Math.random() * 0.1
-                });
-            }
-            return;
-        }
         this.effects.push({
             x, y, type,
             startTime: Date.now(),
@@ -895,6 +878,15 @@ export default class RenderSystem {
                 this.ctx.moveTo(screenX, screenY);
                 this.ctx.lineTo(screenX + this.tileSize, screenY + this.tileSize);
                 this.ctx.stroke();
+            }
+
+            if (e.type === 'dust') {
+                const progress = (now - e.startTime) / e.duration;
+                const radius = (this.tileSize * 0.15) * (1 - progress);
+                this.ctx.fillStyle = `rgba(200, 200, 200, ${0.5 * (1 - progress)})`;
+                this.ctx.beginPath();
+                this.ctx.arc(screenX + (this.tileSize * 0.5), screenY + (this.tileSize * 0.875), radius, 0, Math.PI * 2);
+                this.ctx.fill();
             }
         });
     }
@@ -939,33 +931,6 @@ export default class RenderSystem {
             this.ctx.globalAlpha = 1.0;
         });
         this.ctx.shadowBlur = 0;
-    }
-
-    drawDust() {
-        const ts = this.tileSize;
-        const camX = Math.floor(this.camera.x);
-        const camY = Math.floor(this.camera.y);
-
-        for (let i = this.dustParticles.length - 1; i >= 0; i--) {
-            const p = this.dustParticles[i];
-            p.life -= p.decay;
-            p.x += p.vx;
-            p.y += p.vy;
-
-            if (p.life <= 0) {
-                this.dustParticles.splice(i, 1);
-                continue;
-            }
-
-            const screenX = (p.x * ts) - camX;
-            const screenY = (p.y * ts) - camY;
-            const radius = (ts * p.size);
-
-            this.ctx.fillStyle = `rgba(140, 130, 110, ${0.2 * p.life})`;
-            this.ctx.beginPath();
-            this.ctx.arc(screenX + (ts * 0.5), screenY + (ts * 0.5), radius, 0, Math.PI * 2);
-            this.ctx.fill();
-        }
     }
 
     drawProjectiles(projectiles) {
@@ -1526,4 +1491,123 @@ export default class RenderSystem {
         }
         for (let i = points.length - 1; i >= 0; i--) {
             const p = points[i];
-            while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length 
+            while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop();
+            upper.push(p);
+        }
+        upper.pop(); lower.pop();
+        
+        // Optimization: Reuse hullBuffer instead of concat (which allocates new arrays)
+        this.hullBuffer.length = 0;
+        for (let i = 0; i < lower.length; i++) this.hullBuffer.push(lower[i]);
+        for (let i = 0; i < upper.length; i++) this.hullBuffer.push(upper[i]);
+        
+        return this.hullBuffer;
+    }
+
+    render(grid, entities, loot, projectiles, interaction, localPlayerId) {
+        // Safety check for uninitialized grid (Client waiting for INIT_WORLD)
+        if (!grid || !grid.length || !grid[0]) {
+            this.clear();
+            this.ctx.save();
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.font = '24px monospace';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText("Connecting to Host...", this.canvas.width / 2, this.canvas.height / 2);
+            this.ctx.restore();
+            return;
+        }
+
+        // Check if we need to update static cache
+        if (this.gridSystem && this.gridSystem.revision !== this.lastGridRevision) {
+            this.updateStaticCache(grid);
+        }
+
+        const myPos = entities.get(localPlayerId);
+        
+        // Camera: Match player's interpolated visual movement
+        if (myPos) {
+            // We update the visual state for the local player immediately here
+            // so the camera can lock onto the smooth interpolated position before drawing.
+            const now = Date.now();
+            let visual = this.visualEntities.get(localPlayerId);
+            if (!visual) {
+                visual = { 
+                    x: myPos.x, y: myPos.y, 
+                    targetX: myPos.x, targetY: myPos.y,
+                    startX: myPos.x, startY: myPos.y,
+                    moveStartTime: 0,
+                    attackStart: 0, flashStart: 0,
+                    bumpStart: 0, bumpDir: null,
+                    lastFacingX: -1,
+                    opacity: 1,
+                    idlePhase: Math.random() * Math.PI * 2,
+                    recoilX: 0, recoilY: 0, recoilStart: 0,
+                    isDying: false, deathStart: 0,
+                    flashColor: '#ffffff'
+                };
+                this.visualEntities.set(localPlayerId, visual);
+            }
+
+            if (myPos.x !== visual.targetX || myPos.y !== visual.targetY) {
+                visual.startX = visual.x;
+                visual.startY = visual.y;
+                visual.targetX = myPos.x;
+                visual.targetY = myPos.y;
+                visual.moveStartTime = now;
+            }
+
+            const moveDuration = 250;
+            const t = Math.min(1, (now - visual.moveStartTime) / moveDuration);
+            visual.x = visual.startX + (visual.targetX - visual.startX) * t;
+            visual.y = visual.startY + (visual.targetY - visual.startY) * t;
+
+            this.updateCamera(visual.x, visual.y);
+        } else if (grid && grid.length > 0 && !this.camera.isReady) {
+            // Fallback: Center camera on map if player entity is missing/not yet spawned
+            this.updateCamera(grid[0].length / 2, grid.length / 2);
+        }
+
+        this.clear();
+
+        this.ctx.save();
+        this.ctx.scale(this.scale, this.scale);
+
+        // Apply Screen Shake
+        this.ctx.save(); // Save for shake
+        if (Date.now() - this.shake.startTime < this.shake.duration) {
+            const dx = (Math.random() - 0.5) * this.shake.intensity;
+            const dy = (Math.random() - 0.5) * this.shake.intensity;
+            this.ctx.translate(dx, dy);
+        }
+
+        this.drawFloor(grid, grid[0].length, grid.length);
+        this.drawWalls(grid, grid[0].length, grid.length);
+        this.drawLoot(loot);
+        this.updateAndDrawParticles();
+        
+        // 2. Draw Entities & Projectiles (Before Roofs/Ambient)
+        this.drawProjectiles(projectiles);
+        this.drawEntities(entities, localPlayerId, 'ALL');
+        this.drawEffects();
+
+        // 3. Update Shadow Buffer (Offscreen) - Moved after entities to use updated positions
+        this.drawShadowLayer(grid, this.visualEntities.get(localPlayerId), entities);
+        
+        // 4. Draw Roofs (Occludes entities)
+        this.drawRoof(grid, grid[0].length, grid.length);
+
+        // 5. Draw Ambient Darkness (Over Everything)
+        this.drawAmbientLayer(this.visualEntities.get(localPlayerId));
+
+        // 6. Draw Torch Overlay (New Step)
+        this.drawTorchOverlay(this.visualEntities.get(localPlayerId));
+
+        this.ctx.restore(); // Restore shake
+
+        // Draw UI-like world elements (Floating Text, Interaction) on top, unaffected by shake
+        this.drawFloatingTexts();
+        this.drawInteractionBar(interaction, myPos);
+
+        this.ctx.restore(); // Restore scale
+    }
+}
