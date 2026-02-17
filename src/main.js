@@ -193,21 +193,8 @@ class Game {
     }
 
     setupUI() {
-        // Ensure Activity Log exists (Migration from Kill Feed)
-        if (!document.getElementById('activity-log')) {
-            const oldFeed = document.getElementById('kill-feed');
-            if (oldFeed) {
-                oldFeed.id = 'activity-log';
-            } else {
-                const log = document.createElement('div');
-                log.id = 'activity-log';
-                const ui = document.getElementById('ui-layer');
-                if (ui) ui.appendChild(log);
-            }
-        }
-
         // Reveal HUD elements
-        ['room-code-display', 'activity-log', 'stats-bar'].forEach(id => {
+        ['room-code-display', 'stats-bar'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.classList.remove('hidden');
         });
@@ -560,45 +547,6 @@ class Game {
         }
     }
 
-    addActivityLog(msg) {
-        const feed = document.getElementById('activity-log');
-        if (!feed) return;
-
-        const div = document.createElement('div');
-        div.className = 'activity-msg';
-        div.innerHTML = msg;
-        
-        // Ensure opacity transition logic
-        div.style.opacity = '1';
-        div.style.transition = 'opacity 0.5s ease-out';
-        div.style.animation = 'none';
-
-        // Append to bottom so newest is last
-        feed.appendChild(div);
-
-        // Stack Management: Keep last 5 visible
-        const children = Array.from(feed.children);
-        const maxItems = 5;
-        const threshold = children.length - maxItems;
-
-        if (threshold > 0) {
-            for (let i = 0; i < threshold; i++) {
-                const child = children[i];
-                if (!child.dataset.fading) {
-                    child.dataset.fading = "true";
-                    setTimeout(() => {
-                        if (child.parentNode) {
-                            child.style.opacity = '0';
-                            setTimeout(() => { 
-                                if (child.parentNode) child.remove(); 
-                            }, 500);
-                        }
-                    }, 3000);
-                }
-            }
-        }
-    }
-
     processLootInteraction(entityId, loot) {
         let result = null;
         if (loot.type === 'chest') {
@@ -630,7 +578,6 @@ class Game {
                 const itemName = this.getItemName(result.itemId);
                 this.showNotification(`${itemName}${goldText}`);
                 this.renderSystem.addFloatingText(this.gridSystem.entities.get(entityId).x, this.gridSystem.entities.get(entityId).y, `+${itemName}`, '#FFD700');
-                this.addActivityLog(`Looted ${itemName}${goldText}`);
             } else {
                 // Notify client
                 this.peerClient.send({ type: 'LOOT_SUCCESS', payload: { id: entityId } });
@@ -676,16 +623,6 @@ class Game {
                 this.renderSystem.triggerShake(5, 200); // Screen shake on damage
                 this.audioSystem.play('hit', this.gridSystem.entities.get(targetId).x, this.gridSystem.entities.get(targetId).y);
             }
-            // Stats for local player
-            if (amount > 0 && (targetId === this.state.myId || sourceId === this.state.myId)) {
-                const tStats = this.combatSystem.getStats(targetId);
-                const sStats = sourceId ? this.combatSystem.getStats(sourceId) : null;
-                
-                const tName = targetId === this.state.myId ? "You" : (tStats ? (tStats.name || tStats.type) : "Unknown");
-                const sName = sourceId === this.state.myId ? "You" : (sStats ? (sStats.name || sStats.type) : "Environment");
-                
-                this.addActivityLog(`${sName} hit ${tName} for ${amount}`);
-            }
 
             // Floating Damage Text
             const pos = this.gridSystem.entities.get(targetId);
@@ -728,11 +665,6 @@ class Game {
             
             if (this.state.isHost) {
                 // Award Gold
-                const killerStats = killerId ? this.combatSystem.getStats(killerId) : null;
-                const killerName = killerStats ? (killerStats.name || killerStats.type) : (killerId || 'Environment');
-                const victimName = stats ? (stats.name || stats.type) : entityId;
-
-                let killMsg = `${victimName} died`;
                 if (!stats.isPlayer && stats.team === 'monster' && killerId) {
                     const reward = Math.floor(Math.random() * 4) + 2; // 2-5 gold
                     if (killerId === this.state.myId) {
@@ -743,13 +675,7 @@ class Game {
                     } else {
                         this.peerClient.send({ type: 'UPDATE_GOLD', payload: { id: killerId, amount: reward } });
                     }
-                    killMsg = `<span class="highlight">${killerName}</span> slew <span class="highlight">${victimName}</span>`;
-                } else if (stats.isPlayer) {
-                    killMsg = `<span class="highlight">${victimName}</span> was eliminated by <span class="highlight">${killerName}</span>`;
                 }
-
-                this.peerClient.send({ type: 'ACTIVITY_LOG', payload: { msg: killMsg } });
-                this.addActivityLog(killMsg);
 
                 this.peerClient.send({ type: 'ENTITY_DEATH', payload: { id: entityId } });
                 
@@ -876,10 +802,6 @@ class Game {
                     }
                 }
 
-                if (data.type === 'ACTIVITY_LOG') {
-                    this.addActivityLog(data.payload.msg);
-                }
-                
                 if (data.type === 'LOOT_SUCCESS') {
                     if (data.payload.id === this.state.myId) {
                         this.audioSystem.play('pickup', 0, 0); // Local
@@ -1606,7 +1528,6 @@ class Game {
             const quickSlot = `quick${intent.slot + 1}`;
             const effect = this.lootSystem.consumeItem(entityId, quickSlot);
             if (effect) {
-                this.addActivityLog(`Used ${effect.name} (Slot ${intent.slot + 1})`);
                 if (effect.effect === 'heal') {
                     const stats = this.combatSystem.getStats(entityId);
                     if (stats) {
@@ -1630,7 +1551,6 @@ class Game {
         if (intent.type === 'ABILITY') {
             const result = this.combatSystem.useAbility(entityId);
             if (result) {
-                this.addActivityLog(`Used ${result.ability}`);
                 // Sync visual effects if needed
                 if (result.effect === 'stealth') {
                     const pos = this.gridSystem.entities.get(entityId);
@@ -1733,8 +1653,6 @@ class Game {
         // 3. Notify
         if (this.state.isHost) {
             this.peerClient.send({ type: 'PLAYER_EXTRACTED', payload: { id: entityId } });
-            this.peerClient.send({ type: 'ACTIVITY_LOG', payload: { msg: `<span class="highlight">${name}</span> escaped the dungeon!` } });
-            this.addActivityLog(`<span class="highlight">${name}</span> escaped the dungeon!`);
 
             this.checkGameOver();
             
@@ -1929,25 +1847,6 @@ class Game {
 
     showGameOver(msg) {
         const ui = document.getElementById('ui-layer');
-        
-        // Freeze Activity Log: Clone to detach from existing timeouts and stop fading
-        const feed = document.getElementById('activity-log');
-        if (feed) {
-            const clone = feed.cloneNode(true);
-            feed.parentNode.replaceChild(clone, feed);
-            
-            // Force visibility on all current items in the clone
-            Array.from(clone.children).forEach(child => {
-                child.style.opacity = '1';
-                child.style.transition = 'none';
-            });
-            
-            // Elevate z-index
-            clone.style.zIndex = '2001';
-            if (window.getComputedStyle(clone).position === 'static') {
-                clone.style.position = 'relative';
-            }
-        }
 
         const screen = document.createElement('div');
         screen.id = 'game-over-screen';
