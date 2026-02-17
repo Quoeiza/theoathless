@@ -63,6 +63,7 @@ export default class RenderSystem {
 
         // Render List Pooling
         this.renderList = [];
+        this.explored = new Set(); // Track explored tiles for Auto-Explore
     }
 
     setAssetLoader(loader) {
@@ -190,6 +191,9 @@ export default class RenderSystem {
                 if (y < 0 || y >= height || x < 0 || x >= width) continue;
 
                 const tile = grid[y][x];
+                // Mark as explored if visible
+                this.explored.add(`${x},${y}`);
+
                 // Only draw DYNAMIC tiles here. Static ones (Mud) are cached.
                 // 2=Water, 4=Lava, 9=Extraction
                 if (tile === 2 || tile === 4 || tile === 9) {

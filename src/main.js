@@ -347,6 +347,11 @@ class Game {
     handleDropItem(itemId, source) {
         // Logic to drop item on the floor
         // 1. Remove from inventory/equipment
+        if (!this.state.isHost) {
+            this.peerClient.send({ type: 'DROP_ITEM', payload: { itemId, source } });
+            return;
+        }
+
         let count = 1;
         if (source === 'inventory') {
             count = this.lootSystem.removeItemFromInventory(this.state.myId, itemId);
@@ -362,17 +367,19 @@ class Game {
             if (this.state.isHost) {
                 if (count > 0) this.lootSystem.spawnDrop(pos.x, pos.y, itemId, count);
             } else {
-                // TODO: Send DROP_ITEM intent to host. For now, client side prediction/hack for demo
-                // In a real implementation, we'd emit an intent.
-                // For this revision, we'll just log it if not host.
                 console.warn("Client drop not fully implemented over network yet");
             }
         }
         this.renderInventory();
         this.audioSystem.play('pickup');
+        if (this.state.isHost) this.sendInventoryUpdate(this.state.myId);
     }
 
     handleEquipItem(itemId, slot) {
+        if (!this.state.isHost) {
+            this.peerClient.send({ type: 'EQUIP_ITEM', payload: { itemId, slot } });
+            return;
+        }
         const success = this.lootSystem.equipItem(this.state.myId, itemId, slot);
         if (success) {
             this.renderInventory();
@@ -608,6 +615,7 @@ class Game {
                 if (entityId === this.state.myId) {
                     this.playerData.gold += result.gold;
                     this.updateGoldUI();
+                    this.renderInventory(); // Update UI for item pickup
                 } else if (this.state.isHost) {
                     // If host processing for client, send gold update
                     this.peerClient.send({ type: 'UPDATE_GOLD', payload: { id: entityId, amount: result.gold } });
@@ -626,6 +634,7 @@ class Game {
             } else {
                 // Notify client
                 this.peerClient.send({ type: 'LOOT_SUCCESS', payload: { id: entityId } });
+                if (this.state.isHost) this.sendInventoryUpdate(entityId);
             }
         }
     }
@@ -797,6 +806,14 @@ class Game {
                         payload: { grid: this.gridSystem.grid }
                     });
                 }
+                if (data.type === 'EQUIP_ITEM') {
+                    this.handleEquipItem(data.payload.itemId, data.payload.slot); // Host executes locally for client
+                    this.sendInventoryUpdate(sender);
+                }
+                if (data.type === 'DROP_ITEM') {
+                    this.handleDropItem(data.payload.itemId, data.payload.source); // Host executes locally for client
+                    this.sendInventoryUpdate(sender);
+                }
             } else {
                 // Client Logic: Receive State
                 if (data.type === 'SNAPSHOT') {
@@ -873,6 +890,13 @@ class Game {
                         // The prompt asked for notification on looting from chest, which usually happens locally or via direct interaction response.
                     }
                 }
+
+                if (data.type === 'UPDATE_INVENTORY') {
+                    // Direct injection into LootSystem (assuming Map structure based on other Systems)
+                    if (this.lootSystem.inventories) this.lootSystem.inventories.set(this.state.myId, data.payload.inventory);
+                    if (this.lootSystem.equipment) this.lootSystem.equipment.set(this.state.myId, data.payload.equipment);
+                    this.renderInventory();
+                }
             }
         });
 
@@ -907,6 +931,16 @@ class Game {
         this.gridSystem.addEntity(id, spawn.x, spawn.y);
         this.combatSystem.registerEntity(id, 'player', true, this.playerData.class, this.playerData.name);
         this.state.gameTime = this.config.global.extractionTimeSeconds || 600;
+    }
+
+    sendInventoryUpdate(targetId) {
+        if (!this.state.isHost) return;
+        const inventory = this.lootSystem.getInventory(targetId);
+        const equipment = this.lootSystem.getEquipment(targetId);
+        this.peerClient.sendTo(targetId, { 
+            type: 'UPDATE_INVENTORY', 
+            payload: { inventory, equipment } 
+        });
     }
 
     handleInput(intent) {
@@ -2017,6 +2051,20 @@ class Game {
                     if (id !== this.state.myId) {
                         this.combatSystem.syncRemoteStats(id, data);
                     }
+                }
+
+                // Sync Projectiles & Game Time
+                this.state.projectiles = latestState.projectiles;
+                this.state.gameTime = latestState.gameTime;
+                
+                // Update Timer UI
+                const timerEl = document.getElementById('game-timer');
+                if (timerEl) {
+                    const minutes = Math.floor(this.state.gameTime / 60);
+                    const seconds = Math.floor(this.state.gameTime % 60);
+                    timerEl.innerText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                    if (this.state.gameTime < 60) timerEl.style.color = '#ff4444';
+                    else timerEl.style.color = '#fff';
                 }
 
                 // 3. Reconcile Self (Drift Correction)
