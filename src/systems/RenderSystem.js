@@ -656,26 +656,36 @@ export default class RenderSystem {
 
                 // Dissolve Logic (Top-Down)
                 if (visual.isDying) {
-                    const progress = (now - visual.deathStart) / 1000;
+                    const duration = 750;
+                    const progress = (now - visual.deathStart) / duration;
                     if (progress < 1) {
-                        // Death Effect: Grayscale + Darken
-                        ctx.filter = 'grayscale(100%) brightness(30%)';
+                        // Death Effect: Grayscale + Lighter + Transparent
+                        ctx.filter = 'grayscale(100%) brightness(50%)';
+                        ctx.globalAlpha = alpha * 0.7;
 
-                        const cropH = spriteH * progress;
-                        // Draw only the bottom part
-                        ctx.drawImage(img, 
-                            0, cropH, spriteW, spriteH - cropH, 
-                            drawX, drawY + cropH, spriteW, spriteH - cropH
-                        );
+                        // Chevron "Pile of Sand" Clip
+                        const chevronDepth = spriteH * 0.4;
+                        const level = (progress * (spriteH + chevronDepth)) - chevronDepth;
+
+                        ctx.beginPath();
+                        ctx.moveTo(drawX, drawY + spriteH); // Bottom Left
+                        ctx.lineTo(drawX + spriteW, drawY + spriteH); // Bottom Right
+                        ctx.lineTo(drawX + spriteW, drawY + Math.max(0, level + chevronDepth)); // Right Cut
+                        ctx.lineTo(drawX + (spriteW / 2), drawY + Math.max(0, level)); // Middle Peak
+                        ctx.lineTo(drawX, drawY + Math.max(0, level + chevronDepth)); // Left Cut
+                        ctx.closePath();
+                        ctx.clip();
+
+                        ctx.drawImage(img, drawX, drawY, spriteW, spriteH);
 
                         // Spawn Ash Particles at the dissolve line
                         const spriteHeightInTiles = spriteH / this.tileSize;
-                        const dissolveY = visual.y - spriteHeightInTiles + (progress * spriteHeightInTiles);
+                        const dissolveY = visual.y - spriteHeightInTiles + (level / this.tileSize);
                         
-                        for(let i=0; i<2; i++) {
+                        if (Math.random() < 0.5) {
                             const pX = visual.x + (Math.random() - 0.5) * 0.5;
                             // Downward drift
-                            this.spawnParticle(pX, dissolveY, 0, 1, '#444', 0.02, 0.04);
+                            this.spawnParticle(pX, dissolveY, 0, 1, '#666', 0.02, 0.04);
                         }
                     }
                 } else {
@@ -1271,14 +1281,23 @@ export default class RenderSystem {
                         
                         // Dissolve Logic (Top-Down) - Must match drawEntities
                         if (visual.isDying) {
-                            const progress = (now - visual.deathStart) / 1000;
+                            const duration = 750;
+                            const progress = (now - visual.deathStart) / duration;
                             if (progress < 1) {
-                                const cropH = spriteH * progress;
-                                // Draw only the bottom part of the mask
-                                sCtx.drawImage(img, 
-                                    0, cropH, spriteW, spriteH - cropH, 
-                                    drawX, Math.floor(drawY + cropH), spriteW, spriteH - cropH
-                                );
+                                sCtx.globalAlpha = alpha * 0.7;
+                                const chevronDepth = spriteH * 0.4;
+                                const level = (progress * (spriteH + chevronDepth)) - chevronDepth;
+
+                                sCtx.beginPath();
+                                sCtx.moveTo(drawX, Math.floor(drawY + spriteH));
+                                sCtx.lineTo(drawX + spriteW, Math.floor(drawY + spriteH));
+                                sCtx.lineTo(drawX + spriteW, Math.floor(drawY + Math.max(0, level + chevronDepth)));
+                                sCtx.lineTo(drawX + (spriteW / 2), Math.floor(drawY + Math.max(0, level)));
+                                sCtx.lineTo(drawX, Math.floor(drawY + Math.max(0, level + chevronDepth)));
+                                sCtx.closePath();
+                                sCtx.clip();
+
+                                sCtx.drawImage(img, drawX, Math.floor(drawY), spriteW, spriteH);
                             }
                         } else {
                             // Normal Draw
