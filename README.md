@@ -1,8 +1,8 @@
-# 🏰 DungExtract
+# 🏰 Cold Coin
 
 > A browser-based, multiplayer, 2D top-down dungeon crawling extraction game.
 
-**DungExtract** combines the tension of extraction shooters with the retro aesthetic of classic roguelikes. Players enter procedurally generated dungeons, battle monsters and other players, and must extract to secure their loot.
+**Cold Coin** combines the tension of extraction shooters with the retro aesthetic of classic roguelikes. Players enter procedurally generated dungeons, battle monsters and other players, and must extract to secure their loot.
 
 ---
 

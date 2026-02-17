@@ -1,10 +1,10 @@
-# **DungExtract Game Design Document**
+# **Cold Coin Game Design Document**
 
 # **Project Overview**
 
 ## **Game Concept**
 
-DungExtract is a browser-based, multiplayer, 2D top-down dungeon crawling game with a strong focus on Player vs. Player (PvP) extraction mechanics. Players enter procedurally generated dungeons, gather loot, and must successfully extract to keep their rewards. The core loop is built around risk-reward decision-making, limited resources, and intense player encounters in short 15 minute matches.
+Cold Coin is a browser-based, multiplayer, 2D top-down dungeon crawling game with a strong focus on Player vs. Player (PvP) extraction mechanics. Players enter procedurally generated dungeons, gather loot, and must successfully extract to keep their rewards. The core loop is built around risk-reward decision-making, limited resources, and intense player encounters in short 15 minute matches.
 
 ## **Core Influences**
 

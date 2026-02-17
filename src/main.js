@@ -111,7 +111,7 @@ class Game {
         const lobby = document.createElement('div');
         lobby.id = 'lobby-screen';
         lobby.innerHTML = `
-            <h1>DungExtract</h1>
+            <h1>Cold Coin</h1>
             <div id="player-stats">Gold: ${this.playerData.gold} | Extractions: ${this.playerData.extractions || 0}</div>
             <input type="text" id="player-name" placeholder="Enter Name" value="${this.playerData.name}" />
             <select id="class-select" style="padding: 10px; background: #333; color: white; border: 1px solid #555;">
@@ -171,16 +171,16 @@ class Game {
         this.gameLoop.start();
 
         // Namespace the ID to avoid collisions on public PeerJS server
-        const myPeerId = isHost ? `dungex-${this.generateRoomCode()}` : undefined;
+        const myPeerId = isHost ? `coldcoin-${this.generateRoomCode()}` : undefined;
         this.peerClient.init(myPeerId);
         this.peerClient.on('ready', (id) => {
             if (isHost) {
-                const displayId = id.replace('dungex-', ''); // Strip prefix for display
+                const displayId = id.replace('coldcoin-', ''); // Strip prefix for display
                 this.startHost(id);
                 document.getElementById('room-code-display').innerText = `Room: ${displayId}`;
             } else if (hostId) {
                 document.getElementById('room-code-display').innerText = `Room: ${hostId}`;
-                this.peerClient.connect(`dungex-${hostId}`, { name: this.playerData.name, class: this.playerData.class });
+                this.peerClient.connect(`coldcoin-${hostId}`, { name: this.playerData.name, class: this.playerData.class });
             }
         });
     }
@@ -1527,7 +1527,8 @@ class Game {
                     this.performAttack(entityId, adjId);
                 } else {
                     // Whiff
-                    this.renderSystem.triggerAt(adjX, adjY, 'slash');
+                    this.renderSystem.triggerAttack(entityId);
+                    this.renderSystem.addEffect(adjX, adjY, 'slash');
                     this.peerClient.send({ type: 'EFFECT', payload: { x: adjX, y: adjY, type: 'slash' } });
                     this.audioSystem.play('swing', pos.x, pos.y);
                 }
