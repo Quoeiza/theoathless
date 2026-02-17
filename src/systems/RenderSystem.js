@@ -43,6 +43,8 @@ export default class RenderSystem {
         // Performance Caching
         this.staticCacheBottom = document.createElement('canvas');
         this.staticCtxBottom = this.staticCacheBottom.getContext('2d');
+        this.staticCacheWalls = document.createElement('canvas');
+        this.staticCtxWalls = this.staticCacheWalls.getContext('2d');
         this.staticCacheTop = document.createElement('canvas');
         this.staticCtxTop = this.staticCacheTop.getContext('2d');
         this.lastGridRevision = -1;
@@ -122,15 +124,19 @@ export default class RenderSystem {
         if (this.staticCacheBottom.width !== w * ts || this.staticCacheBottom.height !== h * ts) {
             this.staticCacheBottom.width = w * ts;
             this.staticCacheBottom.height = h * ts;
+            this.staticCacheWalls.width = w * ts;
+            this.staticCacheWalls.height = h * ts;
             this.staticCacheTop.width = w * ts;
             this.staticCacheTop.height = h * ts;
         }
 
         const ctxB = this.staticCtxBottom;
+        const ctxW = this.staticCtxWalls;
         const ctxT = this.staticCtxTop;
 
         // Clear
         ctxB.clearRect(0, 0, w * ts, h * ts);
+        ctxW.clearRect(0, 0, w * ts, h * ts);
         ctxT.clearRect(0, 0, w * ts, h * ts);
 
         // Render entire map to cache
@@ -157,7 +163,7 @@ export default class RenderSystem {
             }
         }
 
-        this.tileMapManager.drawWalls(ctxB, grid, viewBounds);
+        this.tileMapManager.drawWalls(ctxW, grid, viewBounds);
 
         // 2. Top Layer: Roofs
         this.tileMapManager.drawRoof(ctxT, grid, viewBounds);
@@ -179,11 +185,14 @@ export default class RenderSystem {
         const endRow = startRow + (this.canvas.height / this.scale / ts) + 2;
         const viewBounds = { startCol, endCol, startRow, endRow };
 
-        // --- Pass 1: Draw Cached Static Layer ---
+        // --- Pass 1: Draw Cached Static Floor ---
         this.ctx.save();
         this.ctx.translate(-camX, -camY);
         this.ctx.drawImage(this.staticCacheBottom, 0, 0);
-        this.ctx.restore(); // Restore translation, but we need it for the loop below? No, loop calculates screenX manually.
+
+        // --- Pass 1.5: Draw Animated Liquids (Water) ---
+        this.tileMapManager.drawLiquids(this.ctx, grid, viewBounds, Date.now());
+        this.ctx.restore();
 
         // --- Pass 2: Draw procedural floor tiles ---
         for (let y = startRow; y <= endRow; y++) {
@@ -196,19 +205,13 @@ export default class RenderSystem {
 
                 // Only draw DYNAMIC tiles here. Static ones (Mud) are cached.
                 // 2=Water, 4=Lava, 9=Extraction
-                if (tile === 2 || tile === 4 || tile === 9) {
+                if (tile === 4 || tile === 9) {
                     const screenX = (x * ts) - camX;
                     const screenY = (y * ts) - camY;
                     const n = noise(x, y);
 
                     // Re-add procedural rendering for special tiles
-                    if (tile === 2) { // Water
-                        const offset = Math.sin(Date.now() / 500 + x) * (ts * 0.15);
-                        this.ctx.fillStyle = `rgb(20, 40, ${100 + offset})`;
-                        this.ctx.fillRect(screenX, screenY, ts, ts);
-                        this.ctx.fillStyle = 'rgba(255,255,255,0.1)';
-                        this.ctx.fillRect(screenX + (ts * 0.15), screenY + (ts * 0.15) + offset, ts * 0.3, ts * 0.06);
-                    } else if (tile === 4) { // Lava
+                    if (tile === 4) { // Lava
                         const pulse = Math.sin(Date.now() / 300);
                         this.ctx.fillStyle = `rgb(${200 + pulse * 50}, 50, 0)`;
                         this.ctx.fillRect(screenX, screenY, ts, ts);
@@ -225,6 +228,12 @@ export default class RenderSystem {
                 }
             }
         }
+
+        // --- Pass 3: Draw Cached Static Walls ---
+        this.ctx.save();
+        this.ctx.translate(-camX, -camY);
+        this.ctx.drawImage(this.staticCacheWalls, 0, 0);
+        this.ctx.restore();
     }
 
     drawWalls(grid, width, height) {

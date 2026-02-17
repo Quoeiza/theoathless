@@ -9,9 +9,11 @@ export const dungeonTilesetConfig = {
     tileSize: 48,
     sheetWidth: 33, 
     floorSheetWidth: 38,
+    liquidsSheetWidth: 36, 
     assets: {
         floor: './assets/images/dungeon/A2_Terrain_Misc.png',
         wall: './assets/images/dungeon/A4_Walls_And_Edges.png',
+        liquids: './assets/images/dungeon/A1_Liquids_Misc_darker.png',
     },
     themes: {
         'rocky': 0,
@@ -55,6 +57,10 @@ export const dungeonTilesetConfig = {
         'floor_31': 1913,
         'floor_32': 1926,
         'test': 1546
+    },
+    liquidThemes: {
+        'water': 540,
+        'lava': 180,
     },
     tiles: {
         floor: { sx: 0, sy: 0 }, 
@@ -176,6 +182,56 @@ const FLOOR_DATA = [
     { id: 125, w: [1, 0, 0, 0, 0, 0, 1, 1] }
 ];
 
+// LIQUIDS: Water / Lava / etc.
+const LIQUIDS_DATA = [
+    { id: 0, w: [0, 0, 0, 0, 1, 0, 0, 0] },
+    { id: 1, w: [0, 0, 1, 0, 1, 0, 0, 0] },
+    { id: 2, w: [0, 0, 1, 0, 1, 0, 1, 0] },
+    { id: 3, w: [0, 0, 0, 0, 1, 0, 1, 0] },
+    { id: 4, w: [1, 0, 1, 0, 1, 0, 1, 1] },
+    { id: 5, w: [0, 0, 1, 1, 1, 0, 1, 0] },
+    { id: 6, w: [0, 0, 1, 0, 1, 1, 1, 0] },
+    { id: 7, w: [1, 1, 1, 0, 1, 0, 1, 0] },
+    { id: 8, w: [0, 0, 1, 1, 1, 0, 0, 0] },
+    { id: 9, w: [1, 0, 1, 1, 1, 1, 1, 0] },
+    { id: 10, w: [0, 0, 1, 1, 1, 1, 1, 0] },
+    { id: 11, w: [0, 0, 0, 0, 1, 1, 1, 0] },
+    { id: 36, w: [1, 0, 0, 0, 1, 0, 0, 0] },
+    { id: 37, w: [1, 0, 1, 0, 1, 0, 0, 0] },
+    { id: 38, w: [1, 0, 1, 0, 1, 0, 1, 0] },
+    { id: 39, w: [1, 0, 0, 0, 1, 0, 1, 0] },
+    { id: 40, w: [1, 0, 1, 1, 1, 0, 0, 0] },
+    { id: 41, w: [1, 1, 1, 1, 1, 1, 1, 0] },
+    { id: 42, w: [1, 0, 1, 1, 1, 1, 1, 1] },
+    { id: 43, w: [1, 0, 0, 0, 1, 1, 1, 0] },
+    { id: 44, w: [1, 1, 1, 1, 1, 0, 0, 0] },
+    { id: 45, w: [1, 1, 1, 0, 1, 1, 1, 0] },
+    { id: 49, w: [1, 0, 1, 0, 1, 1, 1, 1] },
+    { id: 72, w: [1, 0, 0, 0, 0, 0, 0, 0] },
+    { id: 73, w: [1, 0, 1, 0, 0, 0, 0, 0] },
+    { id: 74, w: [1, 0, 1, 0, 0, 0, 1, 0] },
+    { id: 75, w: [1, 0, 0, 0, 0, 0, 1, 0] },
+    { id: 76, w: [1, 1, 1, 0, 1, 0, 0, 0] },
+    { id: 77, w: [1, 1, 1, 1, 1, 0, 1, 1] },
+    { id: 78, w: [1, 1, 1, 0, 1, 1, 1, 1] },
+    { id: 79, w: [1, 0, 0, 0, 1, 0, 1, 1] },
+    { id: 80, w: [1, 1, 1, 1, 1, 0, 1, 0] },
+    { id: 81, w: [1, 1, 1, 1, 1, 1, 1, 1] },
+    { id: 82, w: [1, 0, 1, 1, 1, 0, 1, 1] },
+    { id: 83, w: [1, 0, 0, 0, 1, 1, 1, 1] },
+    { id: 109, w: [0, 0, 1, 0, 0, 0, 0, 0] },
+    { id: 110, w: [0, 0, 1, 0, 0, 0, 1, 0] },
+    { id: 111, w: [0, 0, 0, 0, 0, 0, 1, 0] },
+    { id: 112, w: [1, 0, 1, 0, 1, 1, 1, 0] },
+    { id: 113, w: [1, 1, 1, 0, 0, 0, 1, 0] },
+    { id: 114, w: [1, 0, 1, 0, 0, 0, 1, 1] },
+    { id: 115, w: [1, 0, 1, 1, 1, 0, 1, 0] },
+    { id: 116, w: [1, 1, 1, 0, 0, 0, 0, 0] },
+    { id: 117, w: [1, 1, 1, 0, 0, 0, 1, 1] },
+    { id: 118, w: [1, 1, 1, 0, 1, 0, 1, 1] },
+    { id: 119, w: [1, 0, 0, 0, 0, 0, 1, 1] }
+];
+
 export class TileMapManager {
     constructor(config = dungeonTilesetConfig) {
         this.config = config;
@@ -186,6 +242,7 @@ export class TileMapManager {
         this.voidMap = this.buildLookup(VOID_DATA);
         this.wallMap = this.buildLookup(WALL_DATA);
         this.floorMap = this.buildLookup(FLOOR_DATA);
+        this.liquidsMap = this.buildLookup(LIQUIDS_DATA);
     }
 
     buildLookup(data) {
@@ -201,17 +258,21 @@ export class TileMapManager {
         const imageMap = {
             [this.config.name + '_floor']: this.config.assets.floor,
             [this.config.name + '_wall']: this.config.assets.wall,
+            [this.config.name + '_liquids']: this.config.assets.liquids,
         };
         await assetLoader.loadImages(imageMap);
         this.assets.floor = assetLoader.getImage(this.config.name + '_floor');
         this.assets.wall = assetLoader.getImage(this.config.name + '_wall');
+        this.assets.liquids = assetLoader.getImage(this.config.name + '_liquids');
     }
 
-    // Helper: 1 = Wall/Torch, 0 = Floor
+    // Helper: 1 = Wall/Torch, 2 = Liquid, 0 = Floor
     getTileVal(map, x, y) {
         if (y < 0 || y >= map.length || x < 0 || x >= map[0].length) return 1;
         const v = map[y][x];
-        return (v === 1 || v === 5) ? 1 : 0;
+        if (v === 1 || v === 5) return 1; // Wall or Torch
+        if (v === 2) return 2; // Liquid
+        return 0; // Floor
     }
 
     // LOGIC: Is this a vertical face visible to the player?
@@ -269,7 +330,7 @@ export class TileMapManager {
 
     /**
      * Calculates neighbors based on the context.
-     * @param mode 'VOID', 'FACE', or 'FLOOR'
+     * @param mode 'VOID', 'FACE', 'FLOOR', or 'LIQUID'
      */
     getWangID(map, x, y, mode) {
         const check = (dx, dy) => {
@@ -283,7 +344,12 @@ export class TileMapManager {
             } else if (mode === 'FLOOR') {
                 // Floors (0) connect to Floors (0).
                 // Walls (1) are boundaries (0).
-                return this.getTileVal(map, nx, ny) === 0 ? 1 : 0;
+                // Connect to Liquids (2) as well so floor continues under water
+                const v = this.getTileVal(map, nx, ny);
+                return (v === 0 || v === 2) ? 1 : 0;
+            } else if (mode === 'LIQUID') {
+                // Liquids (2) connect to other Liquids (2).
+                return this.getTileVal(map, nx, ny) === 2 ? 1 : 0;
             } else {
                 // Faces connect to any solid Wall.
                 // This keeps the pillar structure solid.
@@ -326,8 +392,9 @@ export class TileMapManager {
                 
                 let tileID = 85; // Default Center Floor
 
-                // If it is a Floor tile (0), calculate Wang ID
-                if (this.getTileVal(map, x, y) === 0) {
+                // If it is a Floor tile (0) or Liquid (2), calculate Wang ID
+                const val = this.getTileVal(map, x, y);
+                if (val === 0 || val === 2) {
                     const wangID = this.getWangID(map, x, y, 'FLOOR');
                     this.canonicalizeWang(wangID);
                     const key = wangID.join(',');
@@ -341,6 +408,63 @@ export class TileMapManager {
                 const sheetY = Math.floor(finalID / sheetW) * ts;
                 
                 ctx.drawImage(this.assets.floor, sheetX, sheetY, ts, ts, x * ts, y * ts, ts, ts);
+            }
+        }
+    }
+
+    drawLiquids(ctx, map, viewBounds, timestamp = 0) {
+        if (!this.assets.liquids) return;
+        const ts = this.tileSize;
+        const sheetW = this.config.liquidsSheetWidth || 36;
+        // Simple theme for now, can be expanded
+        const themeRoot = (this.config.liquidThemes && this.config.liquidThemes['water']) || 0;
+        const { startCol, endCol, startRow, endRow } = viewBounds;
+
+        let animOffset = 0;
+
+        // 3. Exceptions
+        if (themeRoot === 180 || themeRoot === 193) {
+            animOffset = 0; // Static sets
+        } 
+        // 2B. Waterfalls (Vertical Forward Loop)
+        else if (themeRoot >= 1620) {
+            // Loop Type: Forward (0 -> 1 -> 2 -> 0)
+            // Timing: 0.5s cycle (Double speed) -> ~166ms per frame
+            const frame = Math.floor(timestamp / 166) % 3;
+            // Frame Offsets: +0, +36, +72
+            animOffset = frame * 36;
+        } 
+        // 2A. Standard Liquids (Horizontal Ping-Pong)
+        else {
+            // Loop Type: Ping-Pong (0 -> 1 -> 2 -> 1 -> 0)
+            // Timing: 1.0s cycle -> 250ms per frame
+            const cycle = Math.floor(timestamp / 250) % 4; // 0, 1, 2, 3
+            const frame = cycle === 3 ? 1 : cycle; // Map 3 to 1
+            // Frame Offsets: +0, +12, +24
+            animOffset = frame * 12;
+        }
+
+        for (let y = startRow; y <= endRow; y++) {
+            for (let x = startCol; x <= endCol; x++) {
+                if (y < 0 || y >= map.length || x < 0 || x >= map[0].length) continue;
+                
+                // If it is a Liquid tile (2), calculate Wang ID
+                if (this.getTileVal(map, x, y) === 2) {
+                    let localWangID = 85; // Default Center
+                    const wangID = this.getWangID(map, x, y, 'LIQUID');
+                    this.canonicalizeWang(wangID);
+                    const key = wangID.join(',');
+                    if (this.liquidsMap.has(key)) {
+                        localWangID = this.liquidsMap.get(key);
+                    }
+
+                    // 1. Global ID Calculation
+                    const finalID = themeRoot + localWangID + animOffset;
+                    const sheetX = (finalID % sheetW) * ts;
+                    const sheetY = Math.floor(finalID / sheetW) * ts;
+                    
+                    ctx.drawImage(this.assets.liquids, sheetX, sheetY, ts, ts, x * ts, y * ts, ts, ts);
+                }
             }
         }
     }

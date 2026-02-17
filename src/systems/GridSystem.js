@@ -70,7 +70,9 @@ export default class GridSystem {
             });
         }
         
-        this.addFeature(2, 10, 5); // Add up to 10 pools of water (2) of max size 5
+        // Water generation: More small pools, occasional larger lakes
+        this.addFeature(2, 40, 3); // Many small puddles (size 2-4)
+        this.addFeature(2, 10, 8);  // Occasional large lakes (size 2-9)
         this.addFeature(3, 5, 4);  // Add up to 5 patches of mud (3) of max size 4
 
         // 6. Place torches on some room walls
