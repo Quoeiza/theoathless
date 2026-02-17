@@ -71,7 +71,7 @@ export default class GridSystem {
         }
         
         // Water generation: More small pools, occasional larger lakes
-        this.addFeature(2, 40, 3); // Many small puddles (size 2-4)
+        this.addFeature(2, 40, 3, 1); // Many small puddles (size 1-3)
         this.addFeature(2, 10, 8);  // Occasional large lakes (size 2-9)
         this.addFeature(3, 5, 4);  // Add up to 5 patches of mud (3) of max size 4
 
@@ -513,14 +513,14 @@ export default class GridSystem {
         console.log(`GridSystem: Spawned ${totalSpawned} skeletons.`);
     }
 
-    addFeature(tileType, count, maxSize) {
+    addFeature(tileType, count, maxSize, minSize = 2) {
         if (!this.rooms || this.rooms.length === 0) return;
 
         for (let i = 0; i < count; i++) {
             const room = this.rooms[Math.floor(Math.random() * this.rooms.length)];
             if (room.isSpawn) continue;
 
-            const size = Math.floor(Math.random() * maxSize) + 2;
+            const size = Math.floor(Math.random() * maxSize) + minSize;
             if (room.w <= size + 2 || room.h <= size + 2) continue; // Ensure room is large enough
 
             const startX = room.x + 1 + Math.floor(Math.random() * (room.w - size - 1));
