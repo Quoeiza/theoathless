@@ -1,10 +1,10 @@
 {
     "slime": {
         "id": "slime",
-        "name": "Green Slime",
+        "name": "Slime",
         "hp": 30,
         "damage": 5,
-        "sprite": "slime_green.png",
+        "sprite": "slime.png",
         "ai": "aggressive"
     },
     "skeleton": {

@@ -4,7 +4,7 @@ export default class SyncManager {
         // Delay interpolation to ensure we have a "next" frame to lerp to.
         // Increased to 250ms to handle variable network latency (PeerJS) and prevent stuttering.
         // If latency + tickRate > delay, you get stutter. 250ms is a safe buffer.
-        this.interpolationDelay = 250; 
+        this.interpolationDelay = 250;
         this.timeOffset = null; // Server Time - Client Time
     }
 
@@ -37,7 +37,7 @@ export default class SyncManager {
 
     addSnapshot(snapshot) {
         // Initialize time offset on first snapshot to sync clocks
-        if (this.timeOffset === null) {
+        if (this.timeOffset === null || this.snapshotBuffer.length === 0) {
             this.timeOffset = snapshot.t - Date.now();
             console.log("SyncManager: Time offset synchronized:", this.timeOffset);
         }
@@ -78,7 +78,8 @@ export default class SyncManager {
                 const latest = this.snapshotBuffer[this.snapshotBuffer.length - 1];
                 return this.convertSnapshotToState(latest);
             }
-            return { entities: new Map(), loot: new Map(), projectiles: [], gameTime: 0 }; 
+            // Keep returning empty if we truly have nothing, but usually we have at least one
+            return { entities: new Map(), loot: new Map(), projectiles: [], gameTime: 0 };
         }
 
         // Edge Case: We are behind the oldest snapshot (Shouldn't happen with correct buffer management)

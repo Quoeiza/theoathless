@@ -353,10 +353,8 @@ export default class GridSystem {
 
     syncRemoteEntities(remoteEntities, localId) {
         // Track entities to remove (present locally but missing from server)
-        const toRemove = new Set();
-        for (const id of this.entities.keys()) {
-            if (id !== localId) toRemove.add(id);
-        }
+        const toRemove = new Set(this.entities.keys());
+        toRemove.delete(localId);
 
         for (const [id, data] of remoteEntities) {
             if (id === localId) continue; // Do not overwrite local player prediction
@@ -445,21 +443,6 @@ export default class GridSystem {
         return { x: 1, y: 1 }; // Ultimate Fallback
     }
 
-    getChestSpawnLocations() {
-        const locs = [];
-        if (!this.rooms) return locs;
-        
-        for (const r of this.rooms) {
-            if (r.isSpawn) continue; // No chests in spawn rooms
-            // Add corners (guaranteed to be inside room and usually safe from center-corridors)
-            locs.push({ x: r.x, y: r.y });
-            locs.push({ x: r.x + r.w - 1, y: r.y });
-            locs.push({ x: r.x, y: r.y + r.h - 1 });
-            locs.push({ x: r.x + r.w - 1, y: r.y + r.h - 1 });
-        }
-        return locs;
-    }
-
     setTile(x, y, value) {
         if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
             this.grid[y][x] = value;
@@ -488,30 +471,82 @@ export default class GridSystem {
     }
 
     populate(combatSystem, lootSystem, config) {
-        // Test Mode: Spawn skeletons in every room
         let totalSpawned = 0;
+        let chestsSpawned = 0;
+        
+        // Get available enemy types from configuration
+        const enemyTypes = Object.keys(combatSystem.enemiesConfig);
+
         if (this.rooms) {
             for (const room of this.rooms) {
                 if (room.isSpawn) continue; // Keep spawn rooms safe
 
-                const count = Math.floor(Math.random() * 2) + 2; // 2-3 per room
-                for (let i = 0; i < count; i++) {
-                    for (let attempt = 0; attempt < 5; attempt++) {
-                        const rx = room.x + Math.floor(Math.random() * room.w);
-                        const ry = room.y + Math.floor(Math.random() * room.h);
-                        
-                        if (this.grid[ry][rx] === 0 && !this.getEntityAt(rx, ry)) {
-                            const id = `skeleton_${totalSpawned}_${Date.now()}`;
-                            this.addEntity(id, rx, ry);
-                            combatSystem.registerEntity(id, 'skeleton', false);
-                            totalSpawned++;
-                            break;
+                // 1. Spawn Monsters
+                if (enemyTypes.length > 0) {
+                    const count = Math.floor(Math.random() * 2) + 2; // 2-3 per room
+                    for (let i = 0; i < count; i++) {
+                        for (let attempt = 0; attempt < 5; attempt++) {
+                            const rx = room.x + Math.floor(Math.random() * room.w);
+                            const ry = room.y + Math.floor(Math.random() * room.h);
+                            
+                            if (this.grid[ry][rx] === 0 && !this.getEntityAt(rx, ry)) {
+                                const type = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
+                                const id = `monster_${totalSpawned}_${Date.now()}`;
+                                this.addEntity(id, rx, ry);
+                                combatSystem.registerEntity(id, type, false);
+                                totalSpawned++;
+                                break;
+                            }
                         }
+                    }
+                }
+
+                // 2. Spawn Chests
+                // 50% chance per room to have a chest
+                if (Math.random() < 0.5) {
+                    let placed = false;
+                    let attempts = 0;
+                    while (!placed && attempts < 10) {
+                        const cx = room.x + Math.floor(Math.random() * room.w);
+                        const cy = room.y + Math.floor(Math.random() * room.h);
+
+                        // Ensure valid placement (Floor, no Entity, no existing Loot)
+                        if (this.grid[cy][cx] === 0 && !this.getEntityAt(cx, cy) && !lootSystem.getLootAt(cx, cy)) {
+                            
+                            // Select Loot Tier based on RNG
+                            const roll = Math.random();
+                            let tier = 'tier_1';
+                            if (roll > 0.7) tier = 'tier_2';
+                            if (roll > 0.95) tier = 'tier_3';
+
+                            const table = lootSystem.itemsConfig.loot_tables[tier];
+                            
+                            if (table && table.length > 0) {
+                                // Weighted Random Selection
+                                const totalWeight = table.reduce((sum, item) => sum + item.weight, 0);
+                                let random = Math.random() * totalWeight;
+                                let selectedItem = table[0].itemId;
+                                
+                                for (const item of table) {
+                                    random -= item.weight;
+                                    if (random <= 0) {
+                                        selectedItem = item.itemId;
+                                        break;
+                                    }
+                                }
+
+                                const gold = Math.floor(Math.random() * 25) + 10;
+                                lootSystem.spawnLoot(cx, cy, selectedItem, 1, 'chest', gold);
+                                chestsSpawned++;
+                                placed = true;
+                            }
+                        }
+                        attempts++;
                     }
                 }
             }
         }
-        console.log(`GridSystem: Spawned ${totalSpawned} skeletons.`);
+        console.log(`GridSystem: Spawned ${totalSpawned} monsters and ${chestsSpawned} chests.`);
     }
 
     addFeature(tileType, count, maxSize, minSize = 2) {

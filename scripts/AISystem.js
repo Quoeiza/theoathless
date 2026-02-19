@@ -40,7 +40,9 @@ export default class AISystem {
                     targetPos = nearestPlayer;
                     shouldAttack = true;
                 }
-            } else if (stats.aiState === 'IDLE') {
+            }
+
+            if (!targetPos && stats.aiState === 'IDLE') {
                 // Roaming Logic
                 if (Math.random() < 0.02) { // 2% chance per tick to move
                     const dir = this.aiDirs[Math.floor(Math.random() * this.aiDirs.length)];
@@ -81,13 +83,7 @@ export default class AISystem {
                     // Try move
                     // Check Loot Collision first
                     if (!this.lootSystem.isCollidable(pos.x + moveX, pos.y + moveY)) {
-                        let result = this.gridSystem.moveEntity(id, moveX, moveY);
-                        
-                        // If blocked, try the other axis
-                        if (!result.success) {
-                            if (moveX !== 0 && this.gridSystem.moveEntity(id, moveX, 0).success) return;
-                            if (moveY !== 0 && this.gridSystem.moveEntity(id, 0, moveY).success) return;
-                        }
+                        this.gridSystem.moveEntity(id, moveX, moveY);
                     }
                     stats.lastActionTime = now;
                 }

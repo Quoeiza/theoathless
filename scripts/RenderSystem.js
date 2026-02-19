@@ -75,7 +75,7 @@ export default class RenderSystem {
         const p1 = loader.loadImages({
             'knight': './assets/images/actors/rogue.png',
             'skelly': './assets/images/actors/skelly.png',
-            'slime': './assets/images/actors/slime_green.png'
+            'slime': './assets/images/actors/slime.png'
         }).catch(err => console.error("Failed to load actor assets:", err));
 
         // After setting the loader, immediately start loading the tilemap assets

@@ -817,7 +817,7 @@ export default class GameLoop {
 
         if (this.combatSystem.getHumanCount() === 0) {
             this.state.gameOver = true;
-            const msg = "All Humans Eliminated";
+            const msg = "No Humans Remain";
             this.peerClient.send({ type: 'HUMANS_ESCAPED', payload: { message: msg } });
             this.uiSystem.showHumansEscaped(msg);
         }
@@ -902,7 +902,7 @@ export default class GameLoop {
                     this.gridSystem.addEntity(this.state.myId, Math.round(serverPos.x), Math.round(serverPos.y));
                 } else {
                     const dist = Math.abs(serverPos.x - localPos.x) + Math.abs(serverPos.y - localPos.y);
-                    if (dist > 5.0) {
+                    if (dist > 1.5) {
                         console.warn("Reconciling position. Dist:", dist);
                         this.gridSystem.addEntity(this.state.myId, Math.round(serverPos.x), Math.round(serverPos.y));
                     }
