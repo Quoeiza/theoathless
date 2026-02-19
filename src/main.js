@@ -1,4 +1,4 @@
-import AssetLoader from './utils/AssetLoader.js';
+import AssetSystem from './systems/AssetSystem.js';
 import GameLoop from './core/GameLoop.js';
 import InputManager, { DIRECTIONS } from './core/InputManager.js';
 import GridSystem from './systems/GridSystem.js';
@@ -14,7 +14,7 @@ const AI_DIRS = [{x:0, y:1}, {x:0, y:-1}, {x:1, y:0}, {x:-1, y:0}];
 
 class Game {
     constructor() {
-        this.assetLoader = new AssetLoader();
+        this.assetSystem = new AssetSystem();
         this.state = {
             myId: null,
             isHost: false,
@@ -39,7 +39,7 @@ class Game {
     async init() {
         // 1. Load Configuration
         this.injectCSS();
-        const configs = await this.assetLoader.loadAll();
+        const configs = await this.assetSystem.loadAll();
         this.config = configs;
 
         // TEST OVERRIDE: Replace all enemies with Skeleton
@@ -73,7 +73,7 @@ class Game {
             window.innerHeight, 
             global.tileSize || 48
         );
-        await this.renderSystem.setAssetLoader(this.assetLoader);
+        await this.renderSystem.setAssetLoader(this.assetSystem);
         this.renderSystem.setGridSystem(this.gridSystem);
 
         this.combatSystem = new CombatSystem(configs.enemies);
@@ -83,7 +83,7 @@ class Game {
         this.peerClient = new PeerClient(configs.net);
         this.syncManager = new SyncManager(configs.global);
         this.audioSystem = new AudioSystem();
-        this.audioSystem.setAssetLoader(this.assetLoader);
+        this.audioSystem.setAssetLoader(this.assetSystem);
         
         // 5. Check for Auto-Join URL
         // Check URL params for ?join=HOST_ID
