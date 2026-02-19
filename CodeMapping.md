@@ -20,6 +20,7 @@
     <Path="src/core/EventEmitter.js" purpose="Implements the observer pattern for event dispatching." />
     <Path="src/core/GameLoop.js" purpose="Controls the update cycle and render interpolation." />
     <Path="src/core/InputManager.js" purpose="Translates raw DOM events into abstract game intents." />
+    <Path="src/core/Ticker.js" purpose="Controls tick rate and global time system." />
     <Path="src/main.js" purpose="Application entry point; initializes systems and manages global state." />
     <Path="src/network/PeerClient.js" purpose="Abstraction layer for WebRTC peer-to-peer connections." />
     <Path="src/network/SyncManager.js" purpose="Manages state snapshots and interpolation for network sync." />
