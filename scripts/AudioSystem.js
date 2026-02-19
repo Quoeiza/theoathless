@@ -45,6 +45,20 @@ export default class AudioSystem {
         }
     }
 
+    unlock() {
+        if (this.enabled) {
+            if (this.ctx.state === 'suspended') {
+                this.ctx.resume();
+            }
+            // Play a silent buffer to force the audio subsystem to unlock on mobile
+            const buffer = this.ctx.createBuffer(1, 1, 22050);
+            const source = this.ctx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(this.ctx.destination);
+            source.start(0);
+        }
+    }
+
     async generateGrimdarkAssets() {
         if (!this.enabled) return;
         

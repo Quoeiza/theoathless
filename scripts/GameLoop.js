@@ -93,7 +93,7 @@ export default class GameLoop {
         this.audioSystem.resume();
         
         const unlockAudio = () => {
-            this.audioSystem.resume();
+            this.audioSystem.unlock();
             document.removeEventListener('click', unlockAudio);
             document.removeEventListener('keydown', unlockAudio);
             document.removeEventListener('touchstart', unlockAudio);
