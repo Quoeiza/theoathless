@@ -108,8 +108,7 @@ export default class GameLoop {
     }
 
     respawnAsMonster(entityId) {
-        const types = Object.keys(this.config.enemies);
-        const type = types[Math.floor(Math.random() * types.length)];
+        const type = this.combatSystem.getRandomMonsterType();
         const spawn = this.gridSystem.getSpawnPoint(false);
         
         this.gridSystem.addEntity(entityId, spawn.x, spawn.y);
@@ -226,7 +225,7 @@ export default class GameLoop {
                 this.audioSystem.play('pickup');
                 this.uiSystem.updateQuickSlotUI();
                 const goldText = result.gold > 0 ? ` + ${result.gold}g` : '';
-                const itemName = this.getItemName(result.itemId);
+                const itemName = this.lootSystem.getName(result.itemId);
                 this.uiSystem.showNotification(`${itemName}${goldText}`);
                 this.renderSystem.addFloatingText(this.gridSystem.entities.get(entityId).x, this.gridSystem.entities.get(entityId).y, `+${itemName}`, '#FFD700');
             } else {
@@ -234,14 +233,6 @@ export default class GameLoop {
                 if (this.state.isHost) this.sendInventoryUpdate(entityId);
             }
         }
-    }
-
-    getItemName(itemId) {
-        const items = this.config.items;
-        if (items.weapons[itemId]) return items.weapons[itemId].name;
-        if (items.armor && items.armor[itemId]) return items.armor[itemId].name;
-        if (items.consumables[itemId]) return items.consumables[itemId].name;
-        return itemId;
     }
 
     setupNetwork() {
@@ -518,7 +509,7 @@ export default class GameLoop {
         const loot = this.lootSystem.getLootAt(gridX, gridY);
 
         if (isContinuous) {
-            const bestId = this.findBestTarget(gridX, gridY, 3);
+            const bestId = this.combatSystem.findBestTarget(this.gridSystem, this.state.myId, gridX, gridY, 3);
             if (bestId) {
                 targetId = bestId;
             }
@@ -575,40 +566,6 @@ export default class GameLoop {
                 this.state.autoPath = [];
             }
         }
-    }
-
-    findBestTarget(cursorX, cursorY, radius) {
-        const myStats = this.combatSystem.getStats(this.state.myId);
-        if (!myStats) return null;
-
-        let bestId = null;
-        let minDst = radius * radius;
-
-        for (const [id, pos] of this.gridSystem.entities) {
-            if (id === this.state.myId) continue;
-
-            const stats = this.combatSystem.getStats(id);
-            if (!stats) continue;
-
-            let isHostile = false;
-            if (myStats.team === 'monster') {
-                if (stats.team === 'player') isHostile = true;
-            } else {
-                if (stats.team === 'monster' || stats.team === 'player') isHostile = true;
-            }
-            
-            if (!isHostile) continue;
-
-            const dx = pos.x - cursorX;
-            const dy = pos.y - cursorY;
-            const dstSq = dx*dx + dy*dy;
-
-            if (dstSq <= minDst) {
-                minDst = dstSq;
-                bestId = id;
-            }
-        }
-        return bestId;
     }
 
     handleMouseMove(data) {
@@ -1031,14 +988,7 @@ export default class GameLoop {
     checkGameOver() {
         if (!this.state.isHost) return;
 
-        let survivorCount = 0;
-        for (const [id, stats] of this.combatSystem.stats) {
-            if (stats.isPlayer && stats.team === 'player') {
-                survivorCount++;
-            }
-        }
-
-        if (survivorCount === 0) {
+        if (this.combatSystem.getSurvivorCount() === 0) {
             const msg = "All Survivors Eliminated";
             this.peerClient.send({ type: 'GAME_OVER', payload: { message: msg } });
             this.uiSystem.showGameOver(msg);

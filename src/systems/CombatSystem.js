@@ -160,4 +160,51 @@ export default class CombatSystem extends EventEmitter {
             stats.invisible = data.invisible;
         }
     }
+
+    findBestTarget(gridSystem, myId, cursorX, cursorY, radius) {
+        const myStats = this.stats.get(myId);
+        if (!myStats) return null;
+
+        let bestId = null;
+        let minDst = radius * radius;
+
+        for (const [id, pos] of gridSystem.entities) {
+            if (id === myId) continue;
+
+            const stats = this.stats.get(id);
+            if (!stats) continue;
+
+            let isHostile = false;
+            if (myStats.team === 'monster') {
+                if (stats.team === 'player') isHostile = true;
+            } else {
+                if (stats.team === 'monster' || stats.team === 'player') isHostile = true;
+            }
+            
+            if (!isHostile) continue;
+
+            const dx = pos.x - cursorX;
+            const dy = pos.y - cursorY;
+            const dstSq = dx*dx + dy*dy;
+
+            if (dstSq <= minDst) {
+                minDst = dstSq;
+                bestId = id;
+            }
+        }
+        return bestId;
+    }
+
+    getSurvivorCount() {
+        let count = 0;
+        for (const stats of this.stats.values()) {
+            if (stats.isPlayer && stats.team === 'player') count++;
+        }
+        return count;
+    }
+
+    getRandomMonsterType() {
+        const types = Object.keys(this.enemiesConfig);
+        return types[Math.floor(Math.random() * types.length)];
+    }
 }

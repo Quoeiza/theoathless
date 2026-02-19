@@ -183,6 +183,11 @@ export default class LootSystem {
         return null;
     }
 
+    getName(itemId) {
+        const config = this.getItemConfig(itemId);
+        return config ? config.name : itemId;
+    }
+
     getItemType(itemId) {
         if (this.itemsConfig.weapons[itemId]) return 'weapon';
         if (this.itemsConfig.armor && this.itemsConfig.armor[itemId]) return 'armor';
