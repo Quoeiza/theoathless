@@ -6,6 +6,9 @@ export function setupLobby(uiLayer, playerData, onHost, onJoin) {
     lobby.style.backgroundImage = "url('./assets/images/ui/bg.jpg')";
 
     lobby.innerHTML = `
+        <video autoplay loop muted playsinline id="lobby-bg-video">
+            <source src="./assets/images/ui/bg.mp4" type="video/mp4">
+        </video>
         <div class="lobby-panel">
             <img src="./assets/images/ui/logo.png" id="game-logo" alt="Cold Coin" />
             
@@ -27,8 +30,8 @@ export function setupLobby(uiLayer, playerData, onHost, onJoin) {
         <div id="lobby-footer">
             <div class="version">v0.1.0 Alpha</div>
             <div class="socials">
-                <span>Discord</span>
-                <span>Twitter</span>
+                <span></span>
+                <span></span>
             </div>
         </div>
     `;

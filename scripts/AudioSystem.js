@@ -13,6 +13,7 @@ export default class AudioSystem {
             this.buffers = {};
             this.assetLoader = null;
             this.listenerPos = null;
+            this.musicSource = null;
 
             // Generate high-fidelity procedural assets immediately
             this.generateGrimdarkAssets();
@@ -25,15 +26,16 @@ export default class AudioSystem {
     setAssetLoader(loader) {
         this.assetLoader = loader;
 
-        // Load Sword Sounds
-        this.assetLoader.loadAudio({
+        // Load Sword Sounds & Music
+        return this.assetLoader.loadAudio({
             'sword1': './assets/audio/weapon/sword1.mp3',
             'sword2': './assets/audio/weapon/sword2.mp3',
             'sword3': './assets/audio/weapon/sword3.mp3',
             'sword4': './assets/audio/weapon/sword4.mp3',
             'sword5': './assets/audio/weapon/sword5.mp3',
             'swing1': './assets/audio/weapon/swing1.mp3',
-            'swing2': './assets/audio/weapon/swing2.mp3'
+            'swing2': './assets/audio/weapon/swing2.mp3',
+            'theme': './assets/audio/music/theme.mp3'
         });
     }
 
@@ -220,5 +222,35 @@ export default class AudioSystem {
         gainNode.connect(this.masterGain);
         
         source.start();
+    }
+
+    playMusic(key) {
+        if (!this.enabled) return;
+        this.stopMusic();
+
+        const buffer = this.buffers[key] || (this.assetLoader && this.assetLoader.getAudio(key));
+        if (!buffer) return;
+
+        const source = this.ctx.createBufferSource();
+        source.buffer = buffer;
+        source.loop = true;
+
+        const gain = this.ctx.createGain();
+        gain.gain.value = 0.3; // Background volume
+
+        source.connect(gain);
+        gain.connect(this.masterGain);
+        source.start();
+
+        this.musicSource = source;
+    }
+
+    stopMusic() {
+        if (this.musicSource) {
+            try {
+                this.musicSource.stop();
+            } catch (e) {}
+            this.musicSource = null;
+        }
     }
 }

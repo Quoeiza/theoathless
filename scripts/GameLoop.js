@@ -81,12 +81,22 @@ export default class GameLoop {
         this.peerClient = new PeerClient(configs.net);
         this.syncManager = new SyncManager(configs.global);
         this.audioSystem = new AudioSystem();
-        this.audioSystem.setAssetLoader(this.assetSystem);
+        await this.audioSystem.setAssetLoader(this.assetSystem);
         this.uiSystem = new UISystem(this);
         this.aiSystem = new AISystem(this.gridSystem, this.combatSystem, this.lootSystem);
 
         // 4. Show Lobby
         this.uiSystem.setupLobby();
+
+        // Play Lobby Music & Handle Autoplay Policy
+        this.audioSystem.playMusic('theme');
+        const resumeAudio = () => {
+            this.audioSystem.resume();
+            document.removeEventListener('click', resumeAudio);
+            document.removeEventListener('keydown', resumeAudio);
+        };
+        document.addEventListener('click', resumeAudio);
+        document.addEventListener('keydown', resumeAudio);
         
         // 5. Check for Auto-Join URL
         const urlParams = new URLSearchParams(window.location.search);
@@ -106,6 +116,7 @@ export default class GameLoop {
 
     startGame(isHost, hostId = null) {
         document.getElementById('lobby-screen').classList.add('hidden');
+        this.audioSystem.stopMusic();
         
         this.setupNetwork();
         this.uiSystem.setupUI();

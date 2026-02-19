@@ -112,6 +112,16 @@ input, select {
     background-repeat: no-repeat;
 }
 
+#lobby-bg-video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+}
+
 .lobby-panel {
     display: flex;
     flex-direction: column;
@@ -188,6 +198,10 @@ input, select {
     #lobby-screen {
         justify-content: center;
         align-items: stretch;
+        background-position: left;
+    }
+    #lobby-bg-video {
+        object-position: left;
     }
     .lobby-panel {
         width: 100%;
