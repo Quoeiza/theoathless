@@ -186,7 +186,7 @@ export default class RenderSystem {
                 this.explored.add(`${x},${y}`);
 
                 // Only draw DYNAMIC tiles here. Static ones (Mud) are cached.
-                // 2=Water, 4=Lava, 9=Extraction
+                // 2=Water, 4=Lava, 9=Escape
                 if (tile === 4 || tile === 9) {
                     const screenX = (x * ts) - camX;
                     const screenY = (y * ts) - camY;
@@ -199,13 +199,18 @@ export default class RenderSystem {
                         this.ctx.fillRect(screenX, screenY, ts, ts);
                         this.ctx.fillStyle = '#ffeb3b';
                         if (n > 0.7) this.ctx.fillRect(screenX + n*(ts * 0.625), screenY + n*(ts * 0.625), ts * 0.125, ts * 0.125);
-                    } else if (tile === 9) { // Extraction Zone
+                    } else if (tile === 9) { // Escape Portal
                         const pulse = (Math.sin(Date.now() / 200) + 1) / 2;
-                        this.ctx.fillStyle = `rgba(0, 255, 255, ${0.1 + pulse * 0.2})`;
-                        this.ctx.fillRect(screenX, screenY, ts, ts);
-                        this.ctx.strokeStyle = `rgba(0, 255, 255, ${0.5 + pulse * 0.5})`;
-                        this.ctx.lineWidth = 2;
-                        this.ctx.strokeRect(screenX + (ts * 0.125), screenY + (ts * 0.125), ts - (ts * 0.25), ts - (ts * 0.25));
+                        const centerX = screenX + (ts * 0.5);
+                        const centerY = screenY + (ts * 0.5);
+                        const grad = this.ctx.createRadialGradient(centerX, centerY, ts * 0.1, centerX, centerY, ts * 0.45);
+                        grad.addColorStop(0, '#e0ffff');
+                        grad.addColorStop(0.5, '#00ffff');
+                        grad.addColorStop(1, `rgba(0, 100, 255, ${0.2 + pulse * 0.3})`);
+                        this.ctx.fillStyle = grad;
+                        this.ctx.beginPath();
+                        this.ctx.arc(centerX, centerY, ts * 0.45, 0, Math.PI * 2);
+                        this.ctx.fill();
                     }
                 }
             }
@@ -407,6 +412,18 @@ export default class RenderSystem {
                         flashColor: '#ffffff'
                     };
                     this.visualEntities.set(id, visual);
+                }
+
+                // Resurrection Check: If entity was dying but is now alive (respawned)
+                if (visual.isDying) {
+                    visual.isDying = false;
+                    visual.opacity = 0;
+                    visual.x = pos.x;
+                    visual.y = pos.y;
+                    visual.startX = pos.x;
+                    visual.startY = pos.y;
+                    visual.targetX = pos.x;
+                    visual.targetY = pos.y;
                 }
 
                 // Detect Position Change

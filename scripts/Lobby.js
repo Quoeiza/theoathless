@@ -13,7 +13,7 @@ export function setupLobby(uiLayer, playerData, onHost, onJoin) {
             <img src="./assets/images/ui/logo.png" id="game-logo" alt="Cold Coin" />
             
             <div class="menu-container">
-                <div id="player-stats">Gold: ${playerData.gold} | Extractions: ${playerData.extractions || 0}</div>
+                <div id="player-stats">Gold: ${playerData.gold} | Escapes: ${playerData.escapes || 0}</div>
                 <input type="text" id="player-name" placeholder="Enter Name" value="${playerData.name}" />
                 <select id="class-select">
                     <option value="Fighter">Fighter (Heal)</option>

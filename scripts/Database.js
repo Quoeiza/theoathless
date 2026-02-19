@@ -6,10 +6,10 @@ export default class Database {
     async getPlayer() {
         try {
             const data = localStorage.getItem(this.storageKey);
-            return data ? JSON.parse(data) : { name: 'Unknown', gold: 0, extractions: 0 };
+            return data ? JSON.parse(data) : { name: 'Unknown', gold: 0, escapes: 0 };
         } catch (e) {
             console.warn("Database: LocalStorage access denied or failed", e);
-            return { name: 'Unknown', gold: 0, extractions: 0 };
+            return { name: 'Unknown', gold: 0, escapes: 0 };
         }
     }
 
@@ -33,12 +33,12 @@ export default class Database {
         return updated;
     }
 
-    async addRewards(goldReward, extractionCount = 0) {
+    async addRewards(goldReward, escapeCount = 0) {
         const current = await this.getPlayer();
         const updated = { 
             ...current, 
             gold: (current.gold || 0) + goldReward,
-            extractions: (current.extractions || 0) + extractionCount
+            escapes: (current.escapes || 0) + escapeCount
         };
         await this.savePlayer(updated);
         return updated;

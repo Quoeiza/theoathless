@@ -20,14 +20,14 @@ export default class GameLoop {
             isHost: false,
             connected: false,
             gameTime: 0,
-            extractionOpen: false,
+            escapeOpen: false,
             actionBuffer: null,
             nextActionTime: 0,
             projectiles: [],
             interaction: null,
             netTimer: 0,
             handshakeInterval: null,
-            isExtracting: false,
+            isEscaping: false,
             autoPath: [],
             chaseTargetId: null
         };
@@ -55,7 +55,7 @@ export default class GameLoop {
 
         
         // 2. Load Player Data
-        this.playerData = (await this.database.getPlayer()) || { name: 'Player', gold: 0, extractions: 0 };
+        this.playerData = (await this.database.getPlayer()) || { name: 'Player', gold: 0, escapes: 0 };
 
         // 3. Initialize Systems
         const global = configs.global || {};
@@ -218,7 +218,7 @@ export default class GameLoop {
                 console.log(`Player ${id} disconnected`);
                 this.gridSystem.removeEntity(id);
                 this.combatSystem.stats.delete(id);
-                this.checkGameOver();
+                this.checkHumansEscaped();
             }
         });
 
@@ -297,7 +297,7 @@ export default class GameLoop {
                     }, 100);
                 }
 
-                this.checkGameOver();
+                this.checkHumansEscaped();
             }
         });
 
@@ -347,13 +347,13 @@ export default class GameLoop {
                     this.gridSystem.removeEntity(data.payload.id);
                     this.renderSystem.triggerDeath(data.payload.id);
                     this.audioSystem.play('death');
-                } else if (data.type === 'GAME_OVER') {
-                    this.uiSystem.showGameOver(data.payload.message);
-                } else if (data.type === 'PLAYER_EXTRACTED') {
-                    console.log(`Player ${data.payload.id} extracted!`);
+                } else if (data.type === 'HUMANS_ESCAPED') {
+                    this.uiSystem.showHumansEscaped(data.payload.message);
+                } else if (data.type === 'PLAYER_ESCAPED') {
+                    console.log(`Player ${data.payload.id} escaped!`);
                 } else if (data.type === 'PORTAL_SPAWN') {
                     this.gridSystem.setTile(data.payload.x, data.payload.y, 9);
-                    this.uiSystem.showNotification("The Extraction Portal has opened!");
+                    this.uiSystem.showNotification("The Escape Portal has opened!");
                     this.audioSystem.play('pickup', data.payload.x, data.payload.y);
                 } else if (data.type === 'RESPAWN_MONSTER') {
                     if (data.payload.id === this.state.myId) {
@@ -425,7 +425,7 @@ export default class GameLoop {
         const spawn = this.gridSystem.getSpawnPoint(true);
         this.gridSystem.addEntity(id, spawn.x, spawn.y);
         this.combatSystem.registerEntity(id, 'player', true, this.playerData.class, this.playerData.name);
-        this.state.gameTime = this.config.global.extractionTimeSeconds || 600;
+        this.state.gameTime = this.config.global.escapeTimeSeconds || 600;
     }
 
     sendInventoryUpdate(targetId) {
@@ -615,7 +615,7 @@ export default class GameLoop {
                     this.renderSystem.addEffect(startX, startY, 'dust');
                 }
                 if (this.gridSystem.grid[Math.round(result.y)][Math.round(result.x)] === 9) {
-                    this.handleExtraction(entityId);
+                    this.handleEscape(entityId);
                 }
             } else if (result.type === 'BUMP_ENTITY') {
                 this.renderSystem.triggerBump(entityId, result.direction);
@@ -779,13 +779,13 @@ export default class GameLoop {
         }
     }
 
-    handleExtraction(entityId) {
-        console.log(`Processing extraction for ${entityId}`);
+    handleEscape(entityId) {
+        console.log(`Processing escape for ${entityId}`);
         const stats = this.combatSystem.getStats(entityId);
         const name = stats ? (stats.name || 'Unknown') : 'Unknown';
         if (entityId === this.state.myId) {
             this.database.addRewards(100, 1).then(data => this.playerData = data);
-            this.state.isExtracting = true;
+            this.state.isEscaping = true;
             this.uiSystem.updateGoldUI();
         }
         
@@ -793,9 +793,9 @@ export default class GameLoop {
         this.combatSystem.stats.delete(entityId);
 
         if (this.state.isHost) {
-            this.peerClient.send({ type: 'PLAYER_EXTRACTED', payload: { id: entityId } });
+            this.peerClient.send({ type: 'PLAYER_ESCAPED', payload: { id: entityId } });
 
-            this.checkGameOver();
+            this.checkHumansEscaped();
             
             setTimeout(() => {
                 this.respawnAsMonster(entityId);
@@ -803,17 +803,17 @@ export default class GameLoop {
         }
 
         if (entityId === this.state.myId) {
-            this.uiSystem.showNotification("EXTRACTED! Respawning as Monster...");
+            this.uiSystem.showNotification("ESCAPED! Respawning as Monster...");
         }
     }
 
-    checkGameOver() {
+    checkHumansEscaped() {
         if (!this.state.isHost) return;
 
-        if (this.combatSystem.getSurvivorCount() === 0) {
-            const msg = "All Survivors Eliminated";
-            this.peerClient.send({ type: 'GAME_OVER', payload: { message: msg } });
-            this.uiSystem.showGameOver(msg);
+        if (this.combatSystem.getHumanCount() === 0) {
+            const msg = "All Humans Eliminated";
+            this.peerClient.send({ type: 'HUMANS_ESCAPED', payload: { message: msg } });
+            this.uiSystem.showHumansEscaped(msg);
         }
     }
 
@@ -823,15 +823,15 @@ export default class GameLoop {
         if (this.state.isHost) {
             this.state.gameTime -= (dt / 1000);
             
-            if (!this.state.extractionOpen && this.state.gameTime <= 60) {
-                this.state.extractionOpen = true;
-                const pos = this.gridSystem.spawnExtractionZone();
+            if (!this.state.escapeOpen && this.state.gameTime <= 60) {
+                this.state.escapeOpen = true;
+                const pos = this.gridSystem.spawnEscapePortal();
                 this.peerClient.send({ type: 'PORTAL_SPAWN', payload: { x: pos.x, y: pos.y } });
             }
 
             if (this.state.gameTime <= 0) {
-                this.peerClient.send({ type: 'GAME_OVER', payload: { message: "Time Expired - Dungeon Collapsed" } });
-                this.uiSystem.showGameOver("Time Expired");
+                this.peerClient.send({ type: 'HUMANS_ESCAPED', payload: { message: "Time Expired - Dungeon Collapsed" } });
+                this.uiSystem.showHumansEscaped("Time Expired");
             }
 
             this.state.netTimer += dt;
@@ -887,10 +887,10 @@ export default class GameLoop {
                 const localPos = this.gridSystem.entities.get(this.state.myId);
             
                 if (serverPos) {
-                if (this.state.isExtracting && serverPos.team !== 'monster') {
+                if (this.state.isEscaping && serverPos.team !== 'monster') {
                     return;
                 }
-                if (serverPos.team === 'monster') this.state.isExtracting = false;
+                if (serverPos.team === 'monster') this.state.isEscaping = false;
 
                 if (!localPos) {
                     this.gridSystem.addEntity(this.state.myId, Math.round(serverPos.x), Math.round(serverPos.y));

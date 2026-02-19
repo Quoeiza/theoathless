@@ -481,9 +481,9 @@ export default class GridSystem {
         this.revision++;
     }
 
-    spawnExtractionZone() {
+    spawnEscapePortal() {
         const pos = this.getSpawnPoint();
-        this.setTile(pos.x, pos.y, 9); // 9 = Extraction Zone
+        this.setTile(pos.x, pos.y, 9); // 9 = Escape Portal
         return pos;
     }
 

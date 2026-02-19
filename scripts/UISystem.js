@@ -344,7 +344,7 @@ export default class UISystem {
         if (modal) modal.classList.toggle('hidden');
     }
 
-    showGameOver(msg) {
+    showHumansEscaped(msg) {
         const ui = document.getElementById('ui-layer');
 
         const screen = document.createElement('div');
@@ -361,13 +361,14 @@ export default class UISystem {
             justifyContent: 'center',
             alignItems: 'center',
             zIndex: '2000',
+            textAlign: 'center',
             color: 'white',
             fontFamily: 'sans-serif',
             pointerEvents: 'auto'
         });
 
         screen.innerHTML = `
-            <h1 style="font-size: 4rem; margin-bottom: 1rem; text-shadow: 0 0 10px #ff0000;">GAME OVER</h1>
+            <h1 style="font-size: 4rem; margin-bottom: 1rem; text-shadow: 0 0 10px #ff0000;">HUMANS ESCAPED</h1>
             <h2 style="font-size: 2rem; margin-bottom: 2rem; color: #ccc;">${msg}</h2>
             <button id="btn-return-lobby" style="padding: 15px 30px; font-size: 1.2rem; cursor: pointer; background: #444; color: white; border: 1px solid #666;">Return to Lobby</button>
         `;
