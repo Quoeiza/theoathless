@@ -90,13 +90,17 @@ export default class GameLoop {
 
         // Play Lobby Music & Handle Autoplay Policy
         this.audioSystem.playMusic('theme');
-        const resumeAudio = () => {
+        this.audioSystem.resume();
+        
+        const unlockAudio = () => {
             this.audioSystem.resume();
-            document.removeEventListener('click', resumeAudio);
-            document.removeEventListener('keydown', resumeAudio);
+            document.removeEventListener('click', unlockAudio);
+            document.removeEventListener('keydown', unlockAudio);
+            document.removeEventListener('touchstart', unlockAudio);
         };
-        document.addEventListener('click', resumeAudio);
-        document.addEventListener('keydown', resumeAudio);
+        document.addEventListener('click', unlockAudio);
+        document.addEventListener('keydown', unlockAudio);
+        document.addEventListener('touchstart', unlockAudio);
         
         // 5. Check for Auto-Join URL
         const urlParams = new URLSearchParams(window.location.search);
