@@ -280,4 +280,19 @@ export default class LootSystem {
             this._addToSpatial(loot);
         }
     }
+
+    resolveInteraction(entityId, lootId) {
+        const loot = this.worldLoot.get(lootId);
+        if (!loot) return null;
+
+        let result = null;
+        if (loot.type === 'chest') {
+            if (!loot.opened) {
+                result = this.tryOpen(entityId, lootId);
+            }
+        } else {
+            result = this.pickupBag(entityId, lootId);
+        }
+        return result;
+    }
 }

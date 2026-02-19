@@ -119,15 +119,6 @@ export default class GameLoop {
         }
     }
 
-    generateRoomCode() {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        let result = '';
-        for (let i = 0; i < 4; i++) {
-            result += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return result;
-    }
-
     startGame(isHost, hostId = null) {
         document.getElementById('lobby-screen').classList.add('hidden');
         
@@ -140,7 +131,7 @@ export default class GameLoop {
 
         this.ticker.start();
 
-        const myPeerId = isHost ? `coldcoin-${this.generateRoomCode()}` : undefined;
+        const myPeerId = isHost ? `coldcoin-${this.peerClient.generateRoomId()}` : undefined;
         this.peerClient.init(myPeerId);
         this.peerClient.on('ready', (id) => {
             if (isHost) {
@@ -201,14 +192,7 @@ export default class GameLoop {
     }
 
     processLootInteraction(entityId, loot) {
-        let result = null;
-        if (loot.type === 'chest') {
-            if (!loot.opened) {
-                result = this.lootSystem.tryOpen(entityId, loot.id);
-            }
-        } else {
-            result = this.lootSystem.pickupBag(entityId, loot.id);
-        }
+        const result = this.lootSystem.resolveInteraction(entityId, loot.id);
 
         if (result) {
             if (result.gold > 0) {
@@ -909,50 +893,29 @@ export default class GameLoop {
     }
 
     performAttack(attackerId, targetId) {
-        const targetPos = this.gridSystem.entities.get(targetId);
-        if (!targetPos) return;
+        const result = this.combatSystem.resolveAttack(attackerId, targetId, this.gridSystem, this.lootSystem);
+        if (!result) return;
 
-        const equip = this.lootSystem.getEquipment(attackerId);
-        const weaponId = equip.weapon;
-        if (weaponId) {
-            const config = this.lootSystem.getItemConfig(weaponId);
-            if (config && config.range > 1) {
-                const attackerPos = this.gridSystem.entities.get(attackerId);
-                const dx = targetPos.x - attackerPos.x;
-                const dy = targetPos.y - attackerPos.y;
-                const mag = Math.sqrt(dx*dx + dy*dy);
-                
-                const proj = { 
-                    id: `proj_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-                    x: attackerPos.x, 
-                    y: attackerPos.y, 
-                    vx: dx/mag, 
-                    vy: dy/mag, 
-                    speed: 15, 
-                    ownerId: attackerId, 
-                    damage: config.damage 
-                };
-                
-                this.state.projectiles.push(proj);
-                this.peerClient.send({ type: 'SPAWN_PROJECTILE', payload: proj });
-                this.audioSystem.play('attack', attackerPos.x, attackerPos.y);
-                return;
-            }
+        if (result.type === 'RANGED') {
+            const proj = { 
+                id: `proj_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+                ...result.projectile 
+            };
+            this.state.projectiles.push(proj);
+            this.peerClient.send({ type: 'SPAWN_PROJECTILE', payload: proj });
+            this.audioSystem.play('attack', result.projectile.x, result.projectile.y);
+            return;
         }
 
-        this.renderSystem.triggerAttack(attackerId);
+        if (result.type === 'MELEE') {
+            this.renderSystem.triggerAttack(attackerId);
+            this.renderSystem.addEffect(result.targetPos.x, result.targetPos.y, 'slash');
+            this.peerClient.send({ type: 'EFFECT', payload: { x: result.targetPos.x, y: result.targetPos.y, type: 'slash' } });
+            
+            this.audioSystem.play('attack', attackerId === this.state.myId ? result.attackerPos.x : result.targetPos.x, result.targetPos.y);
 
-        this.renderSystem.addEffect(targetPos.x, targetPos.y, 'slash');
-        this.peerClient.send({ type: 'EFFECT', payload: { x: targetPos.x, y: targetPos.y, type: 'slash' } });
-        
-        this.audioSystem.play('attack', attackerId === this.state.myId ? this.gridSystem.entities.get(attackerId).x : targetPos.x, targetPos.y);
-
-        const stats = this.combatSystem.getStats(attackerId);
-        let damage = stats ? stats.damage : 5;
-        const isCrit = Math.random() < 0.15;
-        if (isCrit) damage = Math.floor(damage * 1.5);
-
-        this.combatSystem.applyDamage(targetId, damage, attackerId, { isCrit });
+            this.combatSystem.applyDamage(targetId, result.damage, attackerId, { isCrit: result.isCrit });
+        }
     }
 
     handleExtraction(entityId) {

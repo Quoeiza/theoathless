@@ -101,7 +101,7 @@ export default class CombatSystem extends EventEmitter {
         return result;
     }
 
-    applyDamage(targetId, amount, sourceId) {
+    applyDamage(targetId, amount, sourceId, options = {}) {
         const targetStats = this.stats.get(targetId);
         const sourceStats = this.stats.get(sourceId);
         if (!targetStats) return;
@@ -123,7 +123,7 @@ export default class CombatSystem extends EventEmitter {
         if (sourceStats && sourceStats.invisible) sourceStats.invisible = false;
 
         targetStats.hp -= finalDamage;
-        this.emit('damage', { targetId, amount: finalDamage, sourceId, currentHp: targetStats.hp });
+        this.emit('damage', { targetId, amount: finalDamage, sourceId, currentHp: targetStats.hp, options });
 
         if (targetStats.hp <= 0) {
             this.handleDeath(targetId, sourceId);
@@ -206,5 +206,53 @@ export default class CombatSystem extends EventEmitter {
     getRandomMonsterType() {
         const types = Object.keys(this.enemiesConfig);
         return types[Math.floor(Math.random() * types.length)];
+    }
+
+    resolveAttack(attackerId, targetId, gridSystem, lootSystem) {
+        const attackerPos = gridSystem.entities.get(attackerId);
+        const targetPos = gridSystem.entities.get(targetId);
+        if (!attackerPos || !targetPos) return null;
+
+        const attackerStats = this.getStats(attackerId);
+        const targetStats = this.getStats(targetId);
+        if (attackerStats && targetStats && attackerStats.team === 'monster' && targetStats.team === 'monster') {
+            return null;
+        }
+
+        const equip = lootSystem.getEquipment(attackerId);
+        const weaponId = equip.weapon;
+        let config = null;
+        if (weaponId) config = lootSystem.getItemConfig(weaponId);
+
+        if (config && config.range > 1) {
+            const dx = targetPos.x - attackerPos.x;
+            const dy = targetPos.y - attackerPos.y;
+            const mag = Math.sqrt(dx*dx + dy*dy);
+            
+            return {
+                type: 'RANGED',
+                projectile: {
+                    x: attackerPos.x,
+                    y: attackerPos.y,
+                    vx: dx/mag,
+                    vy: dy/mag,
+                    speed: 15,
+                    ownerId: attackerId,
+                    damage: config.damage
+                }
+            };
+        }
+
+        let damage = attackerStats ? attackerStats.damage : 5;
+        const isCrit = Math.random() < 0.15;
+        if (isCrit) damage = Math.floor(damage * 1.5);
+
+        return {
+            type: 'MELEE',
+            damage,
+            isCrit,
+            attackerPos,
+            targetPos
+        };
     }
 }
