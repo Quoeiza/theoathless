@@ -201,7 +201,7 @@ input, select {
         background-position: 25% center;
     }
     #lobby-bg-video {
-        object-position: 0% 50%;
+        object-position: 0% 25%;
     }
     .lobby-panel {
         width: 100%;
@@ -483,10 +483,6 @@ input, select {
     pointer-events: auto;
     display: flex;
     gap: 50px;
-}
-
-@media (min-width: 768px) {
-    /* #mobile-controls { display: none; } */
 }
 
 /* ACTIVITY LOG */
