@@ -142,7 +142,8 @@ input, select {
 }
 
 .join-row input, .join-row button {
-    flex: 1;
+    flex: 1 1 0;
+    min-width: 0;
 }
 
 .lobby-panel input, .lobby-panel select, .lobby-panel button {
@@ -150,6 +151,13 @@ input, select {
     padding: 1vh;
     border-width: 0.5vh;
     box-shadow: 0 1vh 2vh rgba(0,0,0,0.6);
+}
+
+#room-code-input {
+    font-size: 7vh;
+    padding: 0.5vh;
+    text-align: center;
+    text-transform: uppercase;
 }
 
 #game-logo {

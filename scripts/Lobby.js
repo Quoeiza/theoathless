@@ -19,7 +19,7 @@ export function setupLobby(uiLayer, playerData, onHost, onJoin) {
                 </select>
                 <button id="btn-host">Host Game</button>
                 <div class="join-row">
-                    <input type="text" id="room-code-input" placeholder="Room Code" />
+                    <input type="text" id="room-code-input" placeholder="****" />
                     <button id="btn-join">Join Game</button>
                 </div>
             </div>
@@ -33,6 +33,12 @@ export function setupLobby(uiLayer, playerData, onHost, onJoin) {
         </div>
     `;
     uiLayer.appendChild(lobby);
+
+    const codeInput = document.getElementById('room-code-input');
+    codeInput.maxLength = 4;
+    codeInput.addEventListener('input', (e) => {
+        e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '').toUpperCase();
+    });
 
     document.getElementById('btn-host').onclick = () => {
         const name = document.getElementById('player-name').value;
