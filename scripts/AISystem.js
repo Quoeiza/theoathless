@@ -11,8 +11,9 @@ export default class AISystem {
         for (const [id, stats] of this.combatSystem.stats) {
             if (stats.isPlayer) continue;
             
-            // AI Logic: 1 second cooldown
-            if (now - (stats.lastActionTime || 0) < 1000) continue;
+            // AI Logic: Variable cooldown
+            const cooldown = stats.actionCooldown || 1000;
+            if (now - (stats.lastActionTime || 0) < cooldown) continue;
 
             const pos = this.gridSystem.entities.get(id);
             if (!pos) continue;
@@ -49,6 +50,7 @@ export default class AISystem {
                     if (!this.lootSystem.isCollidable(pos.x + dir.x, pos.y + dir.y)) {
                         this.gridSystem.moveEntity(id, dir.x, dir.y);
                         stats.lastActionTime = now;
+                        stats.actionCooldown = (stats.moveSpeed || 4) * 250;
                     }
                 }
             }
@@ -75,6 +77,7 @@ export default class AISystem {
                     // Attack (Only if we have actual target/LOS)
                     if (attackCallback) attackCallback(id, nearestPlayerId);
                     stats.lastActionTime = now;
+                    stats.actionCooldown = (stats.attackSpeed || 4) * 250;
                 } else {
                     // Move towards player (Simple Axis-Aligned)
                     let moveX = Math.sign(dx);
@@ -86,6 +89,7 @@ export default class AISystem {
                         this.gridSystem.moveEntity(id, moveX, moveY);
                     }
                     stats.lastActionTime = now;
+                    stats.actionCooldown = (stats.moveSpeed || 4) * 250;
                 }
             }
         }

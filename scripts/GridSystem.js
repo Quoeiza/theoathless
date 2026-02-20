@@ -511,7 +511,7 @@ export default class GridSystem {
                         const cy = room.y + Math.floor(Math.random() * room.h);
 
                         // Ensure valid placement (Floor, no Entity, no existing Loot)
-                        if (this.grid[cy][cx] === 0 && !this.getEntityAt(cx, cy) && !lootSystem.getLootAt(cx, cy)) {
+                        if (this.isWalkable(cx, cy) && !this.getEntityAt(cx, cy) && !lootSystem.getLootAt(cx, cy)) {
                             
                             // Select Loot Tier based on RNG
                             const roll = Math.random();
@@ -787,8 +787,8 @@ export default class GridSystem {
 
         if (isHostile && !shift) {
             const equip = lootSystem.getEquipment(myId);
-            const weaponId = equip.weapon;
-            const config = weaponId ? lootSystem.getItemConfig(weaponId) : null;
+            const weapon = equip.weapon;
+            const config = weapon ? lootSystem.getItemConfig(weapon.itemId) : null;
             const isRanged = config && config.range > 1;
 
             if (!isRanged) {

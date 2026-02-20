@@ -71,19 +71,12 @@ export default class RenderSystem {
     setAssetLoader(loader) {
         this.assetLoader = loader;
 
-        // Load Actor Sprites
-        const p1 = loader.loadImages({
-            'knight': './assets/images/actors/rogue.png',
-            'skelly': './assets/images/actors/skelly.png',
-            'slime': './assets/images/actors/slime.png'
-        }).catch(err => console.error("Failed to load actor assets:", err));
-
         // After setting the loader, immediately start loading the tilemap assets
-        const p2 = this.tileMapSystem.loadAssets(loader).catch(err => {
+        const p1 = this.tileMapSystem.loadAssets(loader).catch(err => {
             console.error("Failed to load tilemap assets:", err);
         });
 
-        return Promise.all([p1, p2]);
+        return p1;
     }
 
     setGridSystem(gridSystem) {
@@ -625,9 +618,11 @@ export default class RenderSystem {
             }
 
             let spriteKey = null;
-            if (type === 'player') spriteKey = 'knight';
-            if (type === 'skeleton') spriteKey = 'skelly';
-            if (type === 'slime') spriteKey = 'slime';
+            if (type === 'player') {
+                spriteKey = 'rogue.png';
+            } else if (this.combatSystem && this.combatSystem.enemiesConfig[type]) {
+                spriteKey = this.combatSystem.enemiesConfig[type].sprite;
+            }
             
             const img = this.assetLoader ? this.assetLoader.getImage(spriteKey) : null;
 
@@ -1204,9 +1199,11 @@ export default class RenderSystem {
                     }
 
                     let spriteKey = null;
-                    if (type === 'player') spriteKey = 'knight';
-                    if (type === 'skeleton') spriteKey = 'skelly';
-                    if (type === 'slime') spriteKey = 'slime';
+                    if (type === 'player') {
+                        spriteKey = 'rogue.png';
+                    } else if (this.combatSystem && this.combatSystem.enemiesConfig[type]) {
+                        spriteKey = this.combatSystem.enemiesConfig[type].sprite;
+                    }
                     
                     const img = this.assetLoader ? this.assetLoader.getImage(spriteKey) : null;
 

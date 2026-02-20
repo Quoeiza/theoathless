@@ -268,8 +268,19 @@ export default class LootSystem {
     }
 
     getStatsModifier(entityId) {
-        // Helper to calculate total stats from equipment (for CombatSystem later)
-        return { damage: 0, defense: 0 }; 
+        const equip = this.getEquipment(entityId);
+        let damage = 0;
+        let defense = 0;
+
+        if (equip.weapon) {
+            const item = this.getItemConfig(equip.weapon.itemId);
+            if (item) damage += (item.damage || 0);
+        }
+        if (equip.armor) {
+            const item = this.getItemConfig(equip.armor.itemId);
+            if (item) defense += (item.defense || 0);
+        }
+        return { damage, defense };
     }
 
     syncLoot(remoteLootMap) {

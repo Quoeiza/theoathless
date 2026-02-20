@@ -6,12 +6,17 @@ export default class CombatSystem extends EventEmitter {
         this.enemiesConfig = enemiesConfig;
         this.stats = new Map(); // EntityID -> { hp, maxHp, damage }
         this.cooldowns = new Map(); // EntityID -> timestamp
+        this.lootSystem = null;
         
         this.classes = {
             'Fighter': { str: 15, agi: 15, will: 15, ability: 'Second Wind', cooldown: 15000 },
             'Rogue': { str: 10, agi: 25, will: 10, ability: 'Hide', cooldown: 20000 },
             'Barbarian': { str: 25, agi: 10, will: 10, ability: 'Rage', cooldown: 25000 }
         };
+    }
+
+    setLootSystem(lootSystem) {
+        this.lootSystem = lootSystem;
     }
 
     clear() {
@@ -40,7 +45,11 @@ export default class CombatSystem extends EventEmitter {
         
         if (this.enemiesConfig[type]) {
             const cfg = this.enemiesConfig[type];
-            stats = { hp: cfg.hp, maxHp: cfg.hp, damage: cfg.damage, isPlayer, type, lastActionTime: 0, team: 'monster', aiState: 'IDLE', targetLastPos: null, memoryTimer: 0, invisible: false, name: cfg.name || type, attributes: { str: 10, agi: 10, will: 10 } };
+            stats = { 
+                hp: cfg.hp, maxHp: cfg.hp, damage: cfg.damage, isPlayer, type, lastActionTime: 0, team: 'monster', aiState: 'IDLE', targetLastPos: null, memoryTimer: 0, invisible: false, name: cfg.name || type, attributes: { str: 10, agi: 10, will: 10 },
+                attackSpeed: cfg.attackSpeed || 4,
+                moveSpeed: cfg.moveSpeed || 4
+            };
         } else if (isPlayer && this.classes[playerClass]) {
             // Apply Class Stats
             const c = this.classes[playerClass];
@@ -115,6 +124,14 @@ export default class CombatSystem extends EventEmitter {
         // Attribute Scaling (Strength)
         if (sourceStats && sourceStats.attributes) {
             finalDamage += Math.floor((sourceStats.attributes.str - 10) * 0.5);
+        }
+
+        // Apply Defense
+        if (this.lootSystem) {
+            const mods = this.lootSystem.getStatsModifier(targetId);
+            if (mods.defense > 0) {
+                finalDamage = Math.max(1, finalDamage - mods.defense);
+            }
         }
 
         // Break Stealth on damage taken
@@ -220,9 +237,9 @@ export default class CombatSystem extends EventEmitter {
         }
 
         const equip = lootSystem.getEquipment(attackerId);
-        const weaponId = equip.weapon;
+        const weapon = equip.weapon;
         let config = null;
-        if (weaponId) config = lootSystem.getItemConfig(weaponId);
+        if (weapon) config = lootSystem.getItemConfig(weapon.itemId);
 
         if (config && config.range > 1) {
             const dx = targetPos.x - attackerPos.x;
@@ -243,7 +260,12 @@ export default class CombatSystem extends EventEmitter {
             };
         }
 
-        let damage = attackerStats ? attackerStats.damage : 5;
+        let damage = 5;
+        if (attackerStats && attackerStats.team === 'monster') {
+            damage = attackerStats.damage;
+        } else if (config && config.damage) {
+            damage = config.damage;
+        }
         const isCrit = Math.random() < 0.15;
         if (isCrit) damage = Math.floor(damage * 1.5);
 
@@ -268,9 +290,9 @@ export default class CombatSystem extends EventEmitter {
 
     createProjectile(ownerId, x, y, dx, dy, lootSystem) {
         const equip = lootSystem.getEquipment(ownerId);
-        const weaponId = equip.weapon;
+        const weapon = equip.weapon;
         let config = null;
-        if (weaponId) config = lootSystem.getItemConfig(weaponId);
+        if (weapon) config = lootSystem.getItemConfig(weapon.itemId);
 
         if (config && config.range > 1) {
             const mag = Math.sqrt(dx*dx + dy*dy);

@@ -1,18 +1,29 @@
 {
     "slime": {
-        "id": "slime",
         "name": "Slime",
-        "hp": 30,
+        "hp": 15,
         "damage": 5,
         "sprite": "slime.png",
-        "ai": "aggressive"
+        "ai": "aggressive",
+        "attackSpeed": 4,
+        "moveSpeed": 6
     },
     "skeleton": {
-        "id": "skeleton",
         "name": "Skeleton Warrior",
-        "hp": 50,
+        "hp": 40,
+        "damage": 8,
+        "sprite": "skelly.png",
+        "ai": "patrol",
+        "attackSpeed": 4,
+        "moveSpeed": 2
+    },
+    "skeleton_reaver": {
+        "name": "Skeleton Reaver",
+        "hp": 25,
         "damage": 10,
-        "sprite": "skeleton.png",
-        "ai": "patrol"
+        "sprite": "skeleton_reaver.png",
+        "ai": "aggressive",
+        "attackSpeed": 2,
+        "moveSpeed": 1.5
     }
 }

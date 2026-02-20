@@ -54,6 +54,19 @@ export default class GameLoop {
             this.ticker.timePerTick = 1000 / this.config.global.tickRate;
         }
 
+        // 1.5 Load Dynamic Sprites (Actors)
+        const actorImages = {
+            'rogue.png': './assets/images/actors/rogue.png'
+        };
+        if (this.config.enemies) {
+            for (const key in this.config.enemies) {
+                const enemy = this.config.enemies[key];
+                if (enemy.sprite) {
+                    actorImages[enemy.sprite] = `./assets/images/actors/${enemy.sprite}`;
+                }
+            }
+        }
+        await this.assetSystem.loadImages(actorImages);
         
         // 2. Load Player Data
         this.playerData = (await this.database.getPlayer()) || { name: 'Player', gold: 0, escapes: 0 };
@@ -78,6 +91,7 @@ export default class GameLoop {
         this.combatSystem = new CombatSystem(configs.enemies);
         this.renderSystem.setCombatSystem(this.combatSystem);
         this.lootSystem = new LootSystem(configs.items);
+        this.combatSystem.setLootSystem(this.lootSystem);
         this.inputManager = new InputManager(configs.global);
         this.peerClient = new PeerClient(configs.net);
         this.syncManager = new SyncManager(configs.global);
