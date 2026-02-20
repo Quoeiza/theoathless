@@ -204,7 +204,7 @@ input, select {
         background-position: 25% center;
     }
     #lobby-bg-video {
-        object-position: 0% 25%;
+        object-position: 0% 50%;
     }
     .lobby-panel {
         width: 100%;
