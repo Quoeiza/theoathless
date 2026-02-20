@@ -6,6 +6,7 @@ export default class SyncManager {
         // If latency + tickRate > delay, you get stutter. 250ms is a safe buffer.
         this.interpolationDelay = 250;
         this.timeOffset = null; // Server Time - Client Time
+        this.reusableEntities = new Map(); // Reuse to reduce GC
     }
 
     serializeState(gridSystem, combatSystem, lootSystem, projectiles, gameTime) {
@@ -97,7 +98,8 @@ export default class SyncManager {
         // Clamp ratio for safety
         ratio = Math.max(0, Math.min(1, ratio));
 
-        const interpolatedEntities = new Map();
+        this.reusableEntities.clear();
+        const interpolatedEntities = this.reusableEntities;
         const lootMap = new Map(next.loot || []); // Loot uses most recent state (no lerp needed)
         const interpolatedProjectiles = [];
 

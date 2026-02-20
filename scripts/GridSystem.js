@@ -440,7 +440,13 @@ export default class GridSystem {
                 }
             }
         }
-        return { x: 1, y: 1 }; // Ultimate Fallback
+        // Ultimate Fallback: Scan for ANY valid floor tile
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                if (this.grid[y][x] === 0) return { x, y };
+            }
+        }
+        return { x: 1, y: 1 };
     }
 
     setTile(x, y, value) {

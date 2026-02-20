@@ -331,7 +331,8 @@ export default class CombatSystem extends EventEmitter {
                 const gridY = Math.round(p.y);
 
                 if (!gridSystem.isWalkable(gridX, gridY)) {
-                    projectiles.splice(i, 1);
+                    projectiles[i] = projectiles[projectiles.length - 1];
+                    projectiles.pop();
                     hit = true;
                     break;
                 }
@@ -339,7 +340,8 @@ export default class CombatSystem extends EventEmitter {
                 const hitId = gridSystem.getEntityAt(gridX, gridY);
                 if (hitId && hitId !== p.ownerId) {
                     this.applyDamage(hitId, p.damage, p.ownerId);
-                    projectiles.splice(i, 1);
+                    projectiles[i] = projectiles[projectiles.length - 1];
+                    projectiles.pop();
                     hit = true;
                     break;
                 }

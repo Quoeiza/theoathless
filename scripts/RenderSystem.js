@@ -65,6 +65,7 @@ export default class RenderSystem {
 
         // Render List Pooling
         this.renderList = [];
+        this.meshVisited = new Set(); // Reuse Set for meshing to reduce GC
         this.explored = new Set(); // Track explored tiles for Auto-Explore
     }
 
@@ -1052,16 +1053,16 @@ export default class RenderSystem {
         // --- GREEDY MESHING ALGORITHM ---
         // Merges adjacent tiles into larger rectangles to reduce draw calls and eliminate light leaks.
         const mesh = (targetArray, isTypeFunc) => {
-            const visited = new Set();
+            this.meshVisited.clear();
             for (let y = startY; y <= endY; y++) {
                 for (let x = startX; x <= endX; x++) {
                     const key = (y << 16) | x;
-                    if (visited.has(key)) continue;
+                    if (this.meshVisited.has(key)) continue;
 
                     if (isTypeFunc(x, y)) {
                         // 1. Find Width
                         let width = 1;
-                        while (x + width <= endX && isTypeFunc(x + width, y) && !visited.has((y << 16) | (x + width))) {
+                        while (x + width <= endX && isTypeFunc(x + width, y) && !this.meshVisited.has((y << 16) | (x + width))) {
                             width++;
                         }
 
@@ -1073,7 +1074,7 @@ export default class RenderSystem {
                                 const checkX = x + k;
                                 const checkY = y + height;
                                 const checkKey = (checkY << 16) | checkX;
-                                if (!isTypeFunc(checkX, checkY) || visited.has(checkKey)) {
+                                if (!isTypeFunc(checkX, checkY) || this.meshVisited.has(checkKey)) {
                                     canExtend = false;
                                     break;
                                 }
@@ -1090,7 +1091,7 @@ export default class RenderSystem {
                         // 4. Mark Visited
                         for (let iy = 0; iy < height; iy++) {
                             for (let ix = 0; ix < width; ix++) {
-                                visited.add(((y + iy) << 16) | (x + ix));
+                                this.meshVisited.add(((y + iy) << 16) | (x + ix));
                             }
                         }
                     }
