@@ -613,7 +613,7 @@ export default class RenderSystem {
             }
 
             // Shadow
-            ctx.fillStyle = 'rgba(20, 19, 31, 0.6)';
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
             ctx.beginPath();
             ctx.ellipse(screenX + (this.tileSize * 0.5), screenY + (this.tileSize * 0.875), this.tileSize * 0.3125, this.tileSize * 0.125, 0, 0, Math.PI * 2);
             ctx.fill();
@@ -1330,12 +1330,12 @@ export default class RenderSystem {
             // 3. Invert to create Darkness
             // Source-Out: Keeps Source (Dark) where Dest (Light) is Transparent.
             ctx.globalCompositeOperation = 'source-out';
-            ctx.fillStyle = 'rgba(20, 19, 31, 0.9)'; // Grimdark ambient
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'; // Grimdark ambient
             ctx.fillRect(0, 0, w, h);
         } else {
             // No player? Full darkness.
             ctx.globalCompositeOperation = 'source-over';
-            ctx.fillStyle = 'rgba(20, 19, 31, 0.9)';
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
             ctx.fillRect(0, 0, w, h);
         }
         ctx.restore();
@@ -1588,7 +1588,7 @@ export default class RenderSystem {
         const aspect = this.canvas.width / this.canvas.height;
         if (aspect > this.maxAspectRatio) {
             const safeWidth = this.canvas.height * this.maxAspectRatio;
-            const margin = (this.canvas.width - safeWidth) / 2;
+            const margin = ((this.canvas.width - safeWidth) / 2) - 100;
             const fadeSize = 100; // Width of the gradient fade
 
             this.ctx.save();
