@@ -12,6 +12,33 @@ import Database from './Database.js';
 import UISystem from './UISystem.js';
 import AISystem from './AISystem.js';
 
+const NetworkEvents = {
+    // Client to Host
+    DISCOVERY_REQUEST: 'DISCOVERY_REQUEST',
+    INPUT: 'INPUT',
+    INTERACT_LOOT: 'INTERACT_LOOT',
+    EQUIP_ITEM: 'EQUIP_ITEM',
+    UNEQUIP_ITEM: 'UNEQUIP_ITEM',
+    DROP_ITEM: 'DROP_ITEM',
+
+    // Host to Client
+    DISCOVERY_RESPONSE: 'DISCOVERY_RESPONSE',
+    SNAPSHOT: 'SNAPSHOT',
+    INIT_WORLD: 'INIT_WORLD',
+    UPDATE_HP: 'UPDATE_HP',
+    ENTITY_DEATH: 'ENTITY_DEATH',
+    HUMANS_ESCAPED: 'HUMANS_ESCAPED',
+    PLAYER_ESCAPED: 'PLAYER_ESCAPED',
+    PORTAL_SPAWN: 'PORTAL_SPAWN',
+    RESPAWN_MONSTER: 'RESPAWN_MONSTER',
+    EFFECT: 'EFFECT',
+    FLOAT_TEXT: 'FLOAT_TEXT',
+    SPAWN_PROJECTILE: 'SPAWN_PROJECTILE',
+    UPDATE_GOLD: 'UPDATE_GOLD',
+    LOOT_SUCCESS: 'LOOT_SUCCESS',
+    UPDATE_INVENTORY: 'UPDATE_INVENTORY',
+};
+
 export default class GameLoop {
     constructor() {
         this.assetSystem = new AssetSystem();
@@ -44,17 +71,24 @@ export default class GameLoop {
     }
 
     async init() {
-        // 1. Load Configuration
-        const configs = await this.assetSystem.loadAll();
-        this.config = configs;
+        await this._loadAssetsAndConfig();
+        await this._loadPlayerData();
+        await this._initializeSystems();
+        this._setupLobby();
+    }
 
-        // Update loop tick rate from config
+    /**
+     * Loads all game configuration files and dynamic assets.
+     * @private
+     */
+    async _loadAssetsAndConfig() {
+        this.config = await this.assetSystem.loadAll();
+
         if (this.config.global && this.config.global.tickRate) {
             this.ticker.tickRate = this.config.global.tickRate;
             this.ticker.timePerTick = 1000 / this.config.global.tickRate;
         }
 
-        // 1.5 Load Dynamic Sprites (Actors)
         const actorImages = {
             'rogue.png': './assets/images/actors/rogue.png'
         };
@@ -67,12 +101,22 @@ export default class GameLoop {
             }
         }
         await this.assetSystem.loadImages(actorImages);
-        
-        // 2. Load Player Data
-        this.playerData = (await this.database.getPlayer()) || { name: 'Player', gold: 0, escapes: 0 };
+    }
 
-        // 3. Initialize Systems
-        const global = configs.global || {};
+    /**
+     * Loads player data from the local database.
+     * @private
+     */
+    async _loadPlayerData() {
+        this.playerData = (await this.database.getPlayer()) || { name: 'Player', gold: 0, escapes: 0 };
+    }
+
+    /**
+     * Initializes all game systems.
+     * @private
+     */
+    async _initializeSystems() {
+        const global = this.config.global || {};
         this.gridSystem = new GridSystem(
             global.dungeonWidth || 48, 
             global.dungeonHeight || 48, 
@@ -88,22 +132,26 @@ export default class GameLoop {
         await this.renderSystem.setAssetLoader(this.assetSystem);
         this.renderSystem.setGridSystem(this.gridSystem);
 
-        this.combatSystem = new CombatSystem(configs.enemies);
+        this.combatSystem = new CombatSystem(this.config.enemies);
         this.renderSystem.setCombatSystem(this.combatSystem);
-        this.lootSystem = new LootSystem(configs.items);
+        this.lootSystem = new LootSystem(this.config.items);
         this.combatSystem.setLootSystem(this.lootSystem);
-        this.inputManager = new InputManager(configs.global);
-        this.peerClient = new PeerClient(configs.net);
-        this.syncManager = new SyncManager(configs.global);
+        this.inputManager = new InputManager(this.config.global);
+        this.peerClient = new PeerClient(this.config.net);
+        this.syncManager = new SyncManager(this.config.global);
         this.audioSystem = new AudioSystem();
         await this.audioSystem.setAssetLoader(this.assetSystem);
         this.uiSystem = new UISystem(this);
         this.aiSystem = new AISystem(this.gridSystem, this.combatSystem, this.lootSystem);
+    }
 
-        // 4. Show Lobby
+    /**
+     * Sets up the initial lobby screen, audio, and auto-join functionality.
+     * @private
+     */
+    _setupLobby() {
         this.uiSystem.setupLobby();
 
-        // Play Lobby Music & Handle Autoplay Policy
         this.audioSystem.playMusic('theme');
         this.audioSystem.resume();
         
@@ -117,7 +165,6 @@ export default class GameLoop {
         document.addEventListener('keydown', unlockAudio);
         document.addEventListener('touchstart', unlockAudio);
         
-        // 5. Check for Auto-Join URL
         const urlParams = new URLSearchParams(window.location.search);
         const hostId = urlParams.get('join');
         if (hostId) {
@@ -125,7 +172,7 @@ export default class GameLoop {
         }
     }
 
-    startQuickJoin() {
+    _initializeGameStart() {
         document.getElementById('lobby-screen').classList.add('hidden');
         this.audioSystem.stopMusic();
         
@@ -137,6 +184,18 @@ export default class GameLoop {
         this.audioSystem.resume();
 
         this.ticker.start();
+
+        this.peerClient.on('error', (err) => {
+            this.uiSystem.showNotification(`Connection Error: ${err.type}`);
+            // Reload on fatal errors or connection failures
+            if (['network', 'browser-incompatible', 'peer-unavailable', 'socket-error', 'socket-closed'].includes(err.type)) {
+                setTimeout(() => location.reload(), 2000);
+            }
+        });
+    }
+
+    startQuickJoin() {
+        this._initializeGameStart();
 
         this.peerClient.init();
         this.peerClient.on('ready', async (id) => {
@@ -163,40 +222,18 @@ export default class GameLoop {
                 setTimeout(() => location.reload(), 2000);
             }
         });
-
-        this.peerClient.on('error', (err) => {
-            this.uiSystem.showNotification(`Connection Error: ${err.type}`);
-            // Reload on fatal errors or connection failures
-            if (['network', 'browser-incompatible', 'peer-unavailable', 'socket-error', 'socket-closed'].includes(err.type)) setTimeout(() => location.reload(), 2000);
-        });
     }
 
     respawnAsMonster(entityId) {
         const { type } = this.combatSystem.respawnPlayerAsMonster(entityId, this.gridSystem);
         
         if (this.state.isHost) {
-             this.peerClient.send({ type: 'RESPAWN_MONSTER', payload: { id: entityId, type } });
+             this.peerClient.send({ type: NetworkEvents.RESPAWN_MONSTER, payload: { id: entityId, type } });
         }
     }
 
     startGame(isHost, hostId = null) {
-        document.getElementById('lobby-screen').classList.add('hidden');
-        this.audioSystem.stopMusic();
-        
-        this.setupNetwork();
-        this.uiSystem.setupUI();
-        this.inputManager.on('intent', (intent) => this.handleInput(intent));
-        this.inputManager.on('click', (data) => this.handleMouseClick(data));
-        this.inputManager.on('mousemove', (data) => this.handleMouseMove(data));
-        this.audioSystem.resume();
-
-        this.ticker.start();
-
-        this.peerClient.on('error', (err) => {
-            this.uiSystem.showNotification(`Connection Error: ${err.type}`);
-            // Only reload on fatal errors, not during ID hunting
-            if (['network', 'browser-incompatible', 'peer-unavailable', 'socket-error', 'socket-closed'].includes(err.type)) setTimeout(() => location.reload(), 2000);
-        });
+        this._initializeGameStart();
 
         if (isHost) {
             this.peerClient.initHost();
@@ -219,7 +256,7 @@ export default class GameLoop {
 
     handleDropItem(itemId, source) {
         if (!this.state.isHost) {
-            this.peerClient.send({ type: 'DROP_ITEM', payload: { itemId, source } });
+            this.peerClient.send({ type: NetworkEvents.DROP_ITEM, payload: { itemId, source } });
             return;
         }
 
@@ -234,7 +271,7 @@ export default class GameLoop {
 
     handleEquipItem(itemId, slot) {
         if (!this.state.isHost) {
-            this.peerClient.send({ type: 'EQUIP_ITEM', payload: { itemId, slot } });
+            this.peerClient.send({ type: NetworkEvents.EQUIP_ITEM, payload: { itemId, slot } });
             return;
         }
         const success = this.lootSystem.equipItem(this.state.myId, itemId, slot);
@@ -246,7 +283,7 @@ export default class GameLoop {
 
     handleUnequipItem(slot) {
         if (!this.state.isHost) {
-            this.peerClient.send({ type: 'UNEQUIP_ITEM', payload: { slot } });
+            this.peerClient.send({ type: NetworkEvents.UNEQUIP_ITEM, payload: { slot } });
             return;
         }
         const success = this.lootSystem.unequipItem(this.state.myId, slot);
@@ -260,7 +297,7 @@ export default class GameLoop {
         if (this.state.isHost) {
             this.processLootInteraction(this.state.myId, loot);
         } else {
-            this.peerClient.send({ type: 'INTERACT_LOOT', payload: { lootId: loot.id } });
+            this.peerClient.send({ type: NetworkEvents.INTERACT_LOOT, payload: { lootId: loot.id } });
         }
     }
 
@@ -278,7 +315,7 @@ export default class GameLoop {
                         if (stats) stats.gold = (stats.gold || 0) + result.gold;
                     }
                 } else if (this.state.isHost) {
-                    this.peerClient.send({ type: 'UPDATE_GOLD', payload: { id: entityId, amount: result.gold } });
+                    this.peerClient.send({ type: NetworkEvents.UPDATE_GOLD, payload: { id: entityId, amount: result.gold } });
                 }
             }
 
@@ -290,7 +327,7 @@ export default class GameLoop {
                 this.uiSystem.showNotification(`${itemName}${goldText}`);
                 this.renderSystem.addFloatingText(this.gridSystem.entities.get(entityId).x, this.gridSystem.entities.get(entityId).y, `+${itemName}`, '#FFD700');
             } else {
-                this.peerClient.send({ type: 'LOOT_SUCCESS', payload: { id: entityId } });
+                this.peerClient.send({ type: NetworkEvents.LOOT_SUCCESS, payload: { id: entityId } });
                 if (this.state.isHost) this.sendInventoryUpdate(entityId);
             }
         }
@@ -299,18 +336,6 @@ export default class GameLoop {
     setupNetwork() {
         this.peerClient.on('ready', (id) => {
             this.state.myId = id;
-        });
-
-        this.peerClient.on('disconnected', (peerId) => {
-            if (this.state.isHost) {
-                console.log(`Player ${peerId} disconnected.`);
-                this.gridSystem.removeEntity(peerId);
-                this.combatSystem.stats.delete(peerId);
-                this.checkHumansEscaped();
-            } else {
-                this.uiSystem.showNotification("Host disconnected. Returning to lobby.");
-                setTimeout(() => location.reload(), 2000);
-            }
         });
 
         this.peerClient.on('disconnected', (peerId) => {
@@ -346,7 +371,7 @@ export default class GameLoop {
                             this.uiSystem.updateGoldUI();
                             this.uiSystem.showNotification(`+${goldReward}g (Damage)`);
                         } else {
-                            this.peerClient.send({ type: 'UPDATE_GOLD', payload: { id: sourceId, amount: goldReward } });
+                            this.peerClient.send({ type: NetworkEvents.UPDATE_GOLD, payload: { id: sourceId, amount: goldReward } });
                         }
                     }
                 }
@@ -360,14 +385,14 @@ export default class GameLoop {
                 this.renderSystem.addFloatingText(pos.x, pos.y, text, color);
                 
                 if (this.state.isHost) {
-                    this.peerClient.send({ type: 'FLOAT_TEXT', payload: { x: pos.x, y: pos.y, text, color } });
+                    this.peerClient.send({ type: NetworkEvents.FLOAT_TEXT, payload: { x: pos.x, y: pos.y, text, color } });
                 }
             }
 
             this.renderSystem.triggerDamage(targetId, sourceId);
 
             if (this.state.isHost) {
-                this.peerClient.send({ type: 'UPDATE_HP', payload: { id: targetId, hp: currentHp } });
+                this.peerClient.send({ type: NetworkEvents.UPDATE_HP, payload: { id: targetId, hp: currentHp } });
             }
         });
 
@@ -388,11 +413,11 @@ export default class GameLoop {
                         this.uiSystem.updateGoldUI();
                         this.uiSystem.showNotification(`+${reward}g`);
                     } else {
-                        this.peerClient.send({ type: 'UPDATE_GOLD', payload: { id: killerId, amount: reward } });
+                        this.peerClient.send({ type: NetworkEvents.UPDATE_GOLD, payload: { id: killerId, amount: reward } });
                     }
                 }
 
-                this.peerClient.send({ type: 'ENTITY_DEATH', payload: { id: entityId } });
+                this.peerClient.send({ type: NetworkEvents.ENTITY_DEATH, payload: { id: entityId } });
                 
                 let dropX = deathX;
                 let dropY = deathY;
@@ -439,36 +464,36 @@ export default class GameLoop {
 
         this.peerClient.on('data', ({ sender, data }) => {
             if (this.state.isHost) {
-                if (data.type === 'DISCOVERY_REQUEST') {
+                if (data.type === NetworkEvents.DISCOVERY_REQUEST) {
                     this.peerClient.sendTo(sender, {
-                        type: 'DISCOVERY_RESPONSE',
+                        type: NetworkEvents.DISCOVERY_RESPONSE,
                         payload: { gameTime: this.state.gameTime, playerCount: this.combatSystem.getHumanCount() }
                     });
                     return;
                 }
-                if (data.type === 'INPUT') {
+                if (data.type === NetworkEvents.INPUT) {
                     this.processPlayerInput(sender, data.payload);
                 }
-                if (data.type === 'INTERACT_LOOT') {
+                if (data.type === NetworkEvents.INTERACT_LOOT) {
                     const loot = this.lootSystem.worldLoot.get(data.payload.lootId);
                     if (loot) this.processLootInteraction(sender, loot);
                 }
-                if (data.type === 'EQUIP_ITEM') {
+                if (data.type === NetworkEvents.EQUIP_ITEM) {
                     this.handleEquipItem(data.payload.itemId, data.payload.slot);
                     this.sendInventoryUpdate(sender);
                 }
-                if (data.type === 'UNEQUIP_ITEM') {
+                if (data.type === NetworkEvents.UNEQUIP_ITEM) {
                     this.handleUnequipItem(data.payload.slot);
                     this.sendInventoryUpdate(sender);
                 }
-                if (data.type === 'DROP_ITEM') {
+                if (data.type === NetworkEvents.DROP_ITEM) {
                     this.handleDropItem(data.payload.itemId, data.payload.source);
                     this.sendInventoryUpdate(sender);
                 }
             } else {
-                if (data.type === 'SNAPSHOT') {
+                if (data.type === NetworkEvents.SNAPSHOT) {
                     this.syncManager.addSnapshot(data.payload);
-                } else if (data.type === 'INIT_WORLD') {
+                } else if (data.type === NetworkEvents.INIT_WORLD) {
                     this.gridSystem.setGrid(data.payload.grid);
                     if (data.payload.snapshot) {
                         this.syncManager.addSnapshot(data.payload.snapshot);
@@ -479,7 +504,7 @@ export default class GameLoop {
                         this.state.handshakeInterval = null;
                     }
                     this.state.connected = true;
-                } else if (data.type === 'UPDATE_HP') {
+                } else if (data.type === NetworkEvents.UPDATE_HP) {
                     if (data.payload.id === this.state.myId) {
                         const hpEl = document.getElementById('hp-val');
                         if (hpEl) hpEl.innerText = Math.max(0, data.payload.hp);
@@ -488,19 +513,19 @@ export default class GameLoop {
                         const stats = this.combatSystem.getStats(this.state.myId);
                         if (stats) stats.hp = data.payload.hp;
                     }
-                } else if (data.type === 'ENTITY_DEATH') {
+                } else if (data.type === NetworkEvents.ENTITY_DEATH) {
                     this.gridSystem.removeEntity(data.payload.id);
                     this.renderSystem.triggerDeath(data.payload.id);
                     this.audioSystem.play('death');
-                } else if (data.type === 'HUMANS_ESCAPED') {
+                } else if (data.type === NetworkEvents.HUMANS_ESCAPED) {
                     this.uiSystem.showHumansEscaped(data.payload.message);
-                } else if (data.type === 'PLAYER_ESCAPED') {
+                } else if (data.type === NetworkEvents.PLAYER_ESCAPED) {
                     console.log(`Player ${data.payload.id} escaped!`);
-                } else if (data.type === 'PORTAL_SPAWN') {
+                } else if (data.type === NetworkEvents.PORTAL_SPAWN) {
                     this.gridSystem.setTile(data.payload.x, data.payload.y, 9);
                     this.uiSystem.showNotification("The Escape Portal has opened!");
                     this.audioSystem.play('pickup', data.payload.x, data.payload.y);
-                } else if (data.type === 'RESPAWN_MONSTER') {
+                } else if (data.type === NetworkEvents.RESPAWN_MONSTER) {
                     if (data.payload.id === this.state.myId) {
                         this.uiSystem.showNotification(`Respawned as ${data.payload.type}`);
                         const stats = this.combatSystem.getStats(this.state.myId);
@@ -509,19 +534,19 @@ export default class GameLoop {
                             stats.team = 'monster';
                         }
                     }
-                } else if (data.type === 'EFFECT') {
+                } else if (data.type === NetworkEvents.EFFECT) {
                     this.renderSystem.addEffect(data.payload.x, data.payload.y, data.payload.type);
                 }
 
-                if (data.type === 'FLOAT_TEXT') {
+                if (data.type === NetworkEvents.FLOAT_TEXT) {
                     this.renderSystem.addFloatingText(data.payload.x, data.payload.y, data.payload.text, data.payload.color);
                 }
                 
-                if (data.type === 'SPAWN_PROJECTILE') {
+                if (data.type === NetworkEvents.SPAWN_PROJECTILE) {
                     this.audioSystem.play('attack', data.payload.x, data.payload.y);
                 }
 
-                if (data.type === 'UPDATE_GOLD') {
+                if (data.type === NetworkEvents.UPDATE_GOLD) {
                     if (data.payload.id === this.state.myId) {
                         this.playerData.gold = (this.playerData.gold || 0) + data.payload.amount;
                         this.database.updatePlayer({ gold: this.playerData.gold });
@@ -530,7 +555,7 @@ export default class GameLoop {
                     }
                 }
 
-                if (data.type === 'LOOT_SUCCESS') {
+                if (data.type === NetworkEvents.LOOT_SUCCESS) {
                     if (data.payload.id === this.state.myId) {
                         this.audioSystem.play('pickup', 0, 0);
                         this.uiSystem.renderInventory();
@@ -538,7 +563,7 @@ export default class GameLoop {
                     }
                 }
 
-                if (data.type === 'UPDATE_INVENTORY') {
+                if (data.type === NetworkEvents.UPDATE_INVENTORY) {
                     if (this.lootSystem.inventories) this.lootSystem.inventories.set(this.state.myId, data.payload.inventory);
                     if (this.lootSystem.equipment) this.lootSystem.equipment.set(this.state.myId, data.payload.equipment);
                     this.uiSystem.renderInventory();
@@ -565,7 +590,7 @@ export default class GameLoop {
                     this.state.projectiles, this.state.gameTime
                 );
                 this.peerClient.sendTo(peerId, {
-                    type: 'INIT_WORLD',
+                    type: NetworkEvents.INIT_WORLD,
                     payload: {
                         grid: this.gridSystem.grid,
                         snapshot: snapshot
@@ -606,7 +631,7 @@ export default class GameLoop {
         const inventory = this.lootSystem.getInventory(targetId);
         const equipment = this.lootSystem.getEquipment(targetId);
         this.peerClient.sendTo(targetId, { 
-            type: 'UPDATE_INVENTORY', 
+            type: NetworkEvents.UPDATE_INVENTORY, 
             payload: { inventory, equipment } 
         });
     }
@@ -694,7 +719,7 @@ export default class GameLoop {
         if (this.state.isHost) {
             this.processPlayerInput(this.state.myId, intent);
         } else {
-            this.peerClient.send({ type: 'INPUT', payload: intent });
+            this.peerClient.send({ type: NetworkEvents.INPUT, payload: intent });
         }
     }
 
@@ -721,7 +746,7 @@ export default class GameLoop {
 
                 if (proj) {
                     this.state.projectiles.push(proj);
-                    this.peerClient.send({ type: 'SPAWN_PROJECTILE', payload: proj });
+                    this.peerClient.send({ type: NetworkEvents.SPAWN_PROJECTILE, payload: proj });
                     this.audioSystem.play('attack', pos.x, pos.y);
                 } else {
                     const tx = pos.x + intent.direction.x;
@@ -733,7 +758,7 @@ export default class GameLoop {
                     } else {
                         this.renderSystem.triggerAttack(entityId);
                         this.renderSystem.addEffect(tx, ty, 'slash');
-                        this.peerClient.send({ type: 'EFFECT', payload: { x: tx, y: ty, type: 'slash' } });
+                        this.peerClient.send({ type: NetworkEvents.EFFECT, payload: { x: tx, y: ty, type: 'slash' } });
                         this.audioSystem.play('swing', pos.x, pos.y);
                     }
                 }
@@ -826,7 +851,7 @@ export default class GameLoop {
 
                 this.renderSystem.triggerAttack(entityId);
                 this.renderSystem.addEffect(tx, ty, 'slash');
-                this.peerClient.send({ type: 'EFFECT', payload: { x: tx, y: ty, type: 'slash' } });
+                this.peerClient.send({ type: NetworkEvents.EFFECT, payload: { x: tx, y: ty, type: 'slash' } });
                 this.audioSystem.play('swing', pos.x, pos.y);
             }
         }
@@ -861,7 +886,7 @@ export default class GameLoop {
             if (result && result.type === 'PROJECTILE') {
                 if (intent.projId) result.projectile.id = intent.projId;
                 this.state.projectiles.push(result.projectile);
-                this.peerClient.send({ type: 'SPAWN_PROJECTILE', payload: result.projectile });
+                this.peerClient.send({ type: NetworkEvents.SPAWN_PROJECTILE, payload: result.projectile });
                 this.audioSystem.play('attack', pos.x, pos.y);
                 this.renderSystem.triggerAttack(entityId);
             } else if (result && result.type === 'MELEE') {
@@ -869,7 +894,7 @@ export default class GameLoop {
             } else if (result && result.type === 'MISS') {
                 this.renderSystem.triggerAttack(entityId);
                 this.renderSystem.addEffect(result.x, result.y, 'slash');
-                this.peerClient.send({ type: 'EFFECT', payload: { x: result.x, y: result.y, type: 'slash' } });
+                this.peerClient.send({ type: NetworkEvents.EFFECT, payload: { x: result.x, y: result.y, type: 'slash' } });
                 this.audioSystem.play('swing', pos.x, pos.y);
             }
         }
@@ -885,7 +910,7 @@ export default class GameLoop {
                 this.performAttack(entityId, result.targetId);
             } else if (result && result.type === 'MISS') {
                 this.renderSystem.addEffect(result.x, result.y, 'slash');
-                this.peerClient.send({ type: 'EFFECT', payload: { x: result.x, y: result.y, type: 'slash' } });
+                this.peerClient.send({ type: NetworkEvents.EFFECT, payload: { x: result.x, y: result.y, type: 'slash' } });
                 this.audioSystem.play('swing', pos.x, pos.y);
             }
         }
@@ -939,7 +964,7 @@ export default class GameLoop {
                 ...result.projectile 
             };
             this.state.projectiles.push(proj);
-            this.peerClient.send({ type: 'SPAWN_PROJECTILE', payload: proj });
+            this.peerClient.send({ type: NetworkEvents.SPAWN_PROJECTILE, payload: proj });
             this.audioSystem.play('attack', result.projectile.x, result.projectile.y);
             return;
         }
@@ -947,7 +972,7 @@ export default class GameLoop {
         if (result.type === 'MELEE') {
             this.renderSystem.triggerAttack(attackerId);
             this.renderSystem.addEffect(result.targetPos.x, result.targetPos.y, 'slash');
-            this.peerClient.send({ type: 'EFFECT', payload: { x: result.targetPos.x, y: result.targetPos.y, type: 'slash' } });
+            this.peerClient.send({ type: NetworkEvents.EFFECT, payload: { x: result.targetPos.x, y: result.targetPos.y, type: 'slash' } });
             
             this.audioSystem.play('attack', attackerId === this.state.myId ? result.attackerPos.x : result.targetPos.x, result.targetPos.y);
 
@@ -969,7 +994,7 @@ export default class GameLoop {
         this.combatSystem.stats.delete(entityId);
 
         if (this.state.isHost) {
-            this.peerClient.send({ type: 'PLAYER_ESCAPED', payload: { id: entityId } });
+            this.peerClient.send({ type: NetworkEvents.PLAYER_ESCAPED, payload: { id: entityId } });
 
             this.checkHumansEscaped();
             
@@ -991,7 +1016,7 @@ export default class GameLoop {
         if (this.combatSystem.getHumanCount() === 0) {
             this.state.gameOver = true;
             const msg = "No Humans Remain";
-            this.peerClient.send({ type: 'HUMANS_ESCAPED', payload: { message: msg } });
+            this.peerClient.send({ type: NetworkEvents.HUMANS_ESCAPED, payload: { message: msg } });
             this.uiSystem.showHumansEscaped(msg);
         }
     }
@@ -1005,11 +1030,11 @@ export default class GameLoop {
             if (!this.state.escapeOpen && this.state.gameTime <= 60) {
                 this.state.escapeOpen = true;
                 const pos = this.gridSystem.spawnEscapePortal();
-                this.peerClient.send({ type: 'PORTAL_SPAWN', payload: { x: pos.x, y: pos.y } });
+                this.peerClient.send({ type: NetworkEvents.PORTAL_SPAWN, payload: { x: pos.x, y: pos.y } });
             }
 
             if (this.state.gameTime <= 0) {
-                this.peerClient.send({ type: 'HUMANS_ESCAPED', payload: { message: "Time Expired - Dungeon Collapsed" } });
+                this.peerClient.send({ type: NetworkEvents.HUMANS_ESCAPED, payload: { message: "Time Expired - Dungeon Collapsed" } });
                 this.uiSystem.showHumansEscaped("Time Expired");
             }
 
@@ -1020,7 +1045,7 @@ export default class GameLoop {
                     this.gridSystem, this.combatSystem, this.lootSystem,
                     this.state.projectiles, this.state.gameTime
                 );
-                this.peerClient.send({ type: 'SNAPSHOT', payload: snapshot });
+                this.peerClient.send({ type: NetworkEvents.SNAPSHOT, payload: snapshot });
             }
 
             this.combatSystem.updateProjectiles(dt, this.state.projectiles, this.gridSystem);
@@ -1119,7 +1144,6 @@ export default class GameLoop {
             }
 
             const moveIntent = this.inputManager.getMovementIntent();
-            const attackIntent = this.inputManager.getAttackIntent();
             
             if (this.state.autoPath && this.state.autoPath.length > 0 && !moveIntent) {
                 const next = this.state.autoPath[0];
@@ -1161,9 +1185,7 @@ export default class GameLoop {
                 }
             }
 
-            if (attackIntent) {
-                this.handleInput(attackIntent);
-            }
+
         }
 
         if (this.state.isHost) {

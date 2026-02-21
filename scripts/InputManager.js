@@ -12,26 +12,62 @@ export const DIRECTIONS = {
     NONE: { x: 0, y: 0 }
 };
 
+const MOVEMENT_KEYS = new Set([
+    'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+    'KeyW', 'KeyA', 'KeyS', 'KeyD',
+    'Numpad8', 'Numpad2', 'Numpad4', 'Numpad6',
+    'Numpad7', 'Numpad9', 'Numpad1', 'Numpad3',
+    'KeyQ', 'KeyE', 'KeyZ', 'KeyC'
+]);
+
+const KEY_TO_INTENT = {
+    'Space': { type: 'INTERACT' },
+    'Enter': { type: 'INTERACT' },
+    'KeyI': { type: 'TOGGLE_INVENTORY' },
+    'Escape': { type: 'TOGGLE_MENU' },
+    'Tab': { type: 'AUTO_EXPLORE' },
+    'KeyO': { type: 'AUTO_EXPLORE' },
+    'KeyR': { type: 'PICKUP' },
+    'KeyF': { type: 'ABILITY' },
+};
+
+const MOVEMENT_KEY_MAP = {
+    'ArrowUp': { y: -1 }, 'KeyW': { y: -1 }, 'Numpad8': { y: -1 },
+    'ArrowDown': { y: 1 }, 'KeyS': { y: 1 }, 'Numpad2': { y: 1 },
+    'ArrowLeft': { x: -1 }, 'KeyA': { x: -1 }, 'Numpad4': { x: -1 },
+    'ArrowRight': { x: 1 }, 'KeyD': { x: 1 }, 'Numpad6': { x: 1 },
+    'KeyQ': { x: -1, y: -1 }, 'Numpad7': { x: -1, y: -1 }, // NW
+    'KeyE': { x: 1, y: -1 }, 'Numpad9': { x: 1, y: -1 },  // NE
+    'KeyZ': { x: -1, y: 1 }, 'Numpad1': { x: -1, y: 1 },  // SW
+    'KeyC': { x: 1, y: 1 }, 'Numpad3': { x: 1, y: 1 },   // SE
+};
+
+/**
+ * Handles all user input and translates it into game-specific intents.
+ * @extends {EventEmitter}
+ */
 export default class InputManager extends EventEmitter {
     constructor(globalConfig) {
         super();
+        /** @type {Object.<string, boolean>} */
         this.keys = {};
+        /** @type {{x: number, y: number, left: boolean, right: boolean, middle: boolean, wheel: number}} */
         this.mouse = { x: 0, y: 0, left: false, right: false, middle: false, wheel: 0 };
         this.canvas = document.getElementById('game-canvas');
         
         this.initListeners();
     }
 
+    /**
+     * Initializes all the necessary DOM event listeners.
+     * @private
+     */
     initListeners() {
         window.addEventListener('keydown', (e) => {
             this.keys[e.code] = true;
-            // Prevent default scrolling for game keys
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
                 e.preventDefault();
             }
-
-            // Only trigger discrete actions on keydown. 
-            // Continuous movement is handled via polling in getMovementIntent().
             if (!this.isMovementKey(e.code)) {
                 this.handleKeyInput(e.code);
             }
@@ -41,7 +77,6 @@ export default class InputManager extends EventEmitter {
             this.keys[e.code] = false;
         });
 
-        // Mouse Listeners
         if (this.canvas) {
             this.canvas.addEventListener('mousemove', (e) => {
                 const rect = this.canvas.getBoundingClientRect();
@@ -54,9 +89,8 @@ export default class InputManager extends EventEmitter {
                 if (e.button === 0) this.mouse.left = true;
                 if (e.button === 1) this.mouse.middle = true;
                 if (e.button === 2) this.mouse.right = true;
-                
                 this.emit('click', {
-                    button: e.button, // 0: Left, 1: Middle, 2: Right
+                    button: e.button,
                     x: this.mouse.x,
                     y: this.mouse.y,
                     shift: !!(this.keys['ShiftLeft'] || this.keys['ShiftRight'])
@@ -74,33 +108,35 @@ export default class InputManager extends EventEmitter {
                 this.emit('scroll', e.deltaY);
             }, { passive: true });
             
-            // Disable context menu on canvas for Right Click usage
             this.canvas.addEventListener('contextmenu', e => e.preventDefault());
         }
-
-        // Mobile / UI Button bindings
+        
+        this._bindMobileButtons();
+    }
+    
+    /**
+     * Binds touch and click events for on-screen mobile buttons.
+     * @private
+     */
+    _bindMobileButtons() {
         const bindBtn = (id, code) => {
             const el = document.getElementById(id);
-            if (el) {
-                // For movement keys, simulate holding the key for the polling loop
-                if (this.isMovementKey(code)) {
-                    const setKey = (state) => { this.keys[code] = state; };
-                    
-                    el.addEventListener('mousedown', (e) => { e.preventDefault(); setKey(true); });
-                    el.addEventListener('mouseup', (e) => { e.preventDefault(); setKey(false); });
-                    el.addEventListener('mouseleave', (e) => { e.preventDefault(); setKey(false); });
-                    
-                    el.addEventListener('touchstart', (e) => { e.preventDefault(); setKey(true); });
-                    el.addEventListener('touchend', (e) => { e.preventDefault(); setKey(false); });
-                } else {
-                    // For action keys, trigger the handler directly
-                    const trigger = (e) => {
-                        e.preventDefault();
-                        this.handleKeyInput(code);
-                    };
-                    el.addEventListener('touchstart', trigger);
-                    el.addEventListener('click', trigger);
-                }
+            if (!el) return;
+
+            if (this.isMovementKey(code)) {
+                const setKey = (state) => { this.keys[code] = state; };
+                el.addEventListener('mousedown', (e) => { e.preventDefault(); setKey(true); });
+                el.addEventListener('mouseup', (e) => { e.preventDefault(); setKey(false); });
+                el.addEventListener('mouseleave', (e) => { e.preventDefault(); setKey(false); });
+                el.addEventListener('touchstart', (e) => { e.preventDefault(); setKey(true); }, { passive: false });
+                el.addEventListener('touchend', (e) => { e.preventDefault(); setKey(false); });
+            } else {
+                const trigger = (e) => {
+                    e.preventDefault();
+                    this.handleKeyInput(code);
+                };
+                el.addEventListener('touchstart', trigger, { passive: false });
+                el.addEventListener('click', trigger);
             }
         };
 
@@ -108,56 +144,34 @@ export default class InputManager extends EventEmitter {
         bindBtn('btn-down', 'ArrowDown');
         bindBtn('btn-left', 'ArrowLeft');
         bindBtn('btn-right', 'ArrowRight');
-        bindBtn('btn-attack', 'Space'); // Space is now Interact/Attack context
+        bindBtn('btn-attack', 'Space');
         bindBtn('btn-pickup', 'KeyR');
         bindBtn('btn-ability', 'KeyF');
     }
 
+    /**
+     * Checks if a given key code is a movement key.
+     * @param {string} code - The key code to check.
+     * @returns {boolean} True if it's a movement key.
+     */
     isMovementKey(code) {
-        return [
-            'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
-            'KeyW', 'KeyA', 'KeyS', 'KeyD',
-            'Numpad8', 'Numpad2', 'Numpad4', 'Numpad6',
-            'Numpad7', 'Numpad9', 'Numpad1', 'Numpad3',
-            'KeyQ', 'KeyE', 'KeyZ', 'KeyC'
-        ].includes(code);
+        return MOVEMENT_KEYS.has(code);
     }
 
+    /**
+     * Handles discrete key presses and converts them into game intents.
+     * @param {string} code - The key code that was pressed.
+     * @private
+     */
     handleKeyInput(code) {
-        let intent = null;
+        let intent = KEY_TO_INTENT[code] || null;
 
-        // Context-Sensitive Interact
-        if (code === 'Space' || code === 'Enter') {
-            intent = { type: 'INTERACT' };
-        }
-        
-        // UI Toggles
-        else if (code === 'KeyI') {
-            intent = { type: 'TOGGLE_INVENTORY' };
-        }
-        else if (code === 'Escape') {
-            intent = { type: 'TOGGLE_MENU' };
-        }
-        else if (code === 'Tab' || code === 'KeyO') {
-            intent = { type: 'AUTO_EXPLORE' };
-        }
-        
-        // Ability Slots 1-0 (Mapping to 0-9)
-        else if (code.startsWith('Digit')) {
+        if (code.startsWith('Digit')) {
             const num = parseInt(code.replace('Digit', ''));
             if (!isNaN(num)) {
-                // 1 -> 0, 2 -> 1, ... 0 -> 9
                 const slot = num === 0 ? 9 : num - 1;
                 intent = { type: 'USE_ABILITY_SLOT', slot };
             }
-        }
-
-        // Legacy / Mobile Fallbacks
-        else if (code === 'KeyR') {
-            intent = { type: 'PICKUP' };
-        }
-        else if (code === 'KeyF') {
-            intent = { type: 'ABILITY' };
         }
 
         if (intent) {
@@ -165,26 +179,22 @@ export default class InputManager extends EventEmitter {
         }
     }
 
+    /**
+     * Polls the current state of movement keys and returns a movement intent.
+     * @returns {{type: string, direction: {x: number, y: number}, shift: boolean}|null} A movement intent object or null if no movement keys are pressed.
+     */
     getMovementIntent() {
         let x = 0;
         let y = 0;
 
-        // North
-        if (this.keys['ArrowUp'] || this.keys['KeyW'] || this.keys['Numpad8']) y -= 1;
-        // South
-        if (this.keys['ArrowDown'] || this.keys['KeyS'] || this.keys['Numpad2']) y += 1;
-        // West
-        if (this.keys['ArrowLeft'] || this.keys['KeyA'] || this.keys['Numpad4']) x -= 1;
-        // East
-        if (this.keys['ArrowRight'] || this.keys['KeyD'] || this.keys['Numpad6']) x += 1;
+        for (const key in this.keys) {
+            if (this.keys[key] && MOVEMENT_KEY_MAP[key]) {
+                const move = MOVEMENT_KEY_MAP[key];
+                if(move.x !== undefined) x = move.x;
+                if(move.y !== undefined) y = move.y;
+            }
+        }
         
-        // Diagonals (Overrides)
-        if (this.keys['KeyQ'] || this.keys['Numpad7']) { x = -1; y = -1; } // NW
-        if (this.keys['KeyE'] || this.keys['Numpad9']) { x = 1; y = -1; }  // NE
-        if (this.keys['KeyZ'] || this.keys['Numpad1']) { x = -1; y = 1; }  // SW
-        if (this.keys['KeyC'] || this.keys['Numpad3']) { x = 1; y = 1; }   // SE
-        
-        // Clamp to ensure valid direction vector (-1, 0, 1)
         const dir = { x: Math.sign(x), y: Math.sign(y) };
         const shift = !!(this.keys['ShiftLeft'] || this.keys['ShiftRight']);
 
@@ -194,12 +204,10 @@ export default class InputManager extends EventEmitter {
         return null;
     }
 
-    getAttackIntent() {
-        // Space/Enter are now handled via event-based 'INTERACT' intent in handleKeyInput.
-        // We return null here to prevent the polling loop from firing continuous attacks.
-        return null; 
-    }
-
+    /**
+     * Gets the current state of the mouse.
+     * @returns {{x: number, y: number, left: boolean, right: boolean, middle: boolean, wheel: number, shift: boolean}}
+     */
     getMouseState() {
         return { 
             ...this.mouse,

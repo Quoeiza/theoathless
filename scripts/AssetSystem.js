@@ -1,13 +1,24 @@
 export default class AssetSystem {
     constructor() {
+        /** @type {Object.<string, HTMLImageElement>} */
         this.images = {};
+        /** @type {Object.<string, AudioBuffer>} */
         this.audio = {};
+        /** @type {?AudioContext} */
         this.audioContext = null; // Lazy init
     }
 
+    /**
+     * Fetches and parses a JSON configuration file.
+     * @param {string} path - The path to the JSON file.
+     * @returns {Promise<Object>} A promise that resolves to the parsed JSON object, or an empty object on failure.
+     */
     async loadConfig(path) {
         try {
             const response = await fetch(path);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
             return await response.json();
         } catch (e) {
             console.error(`Failed to load config: ${path}`, e);
@@ -15,12 +26,14 @@ export default class AssetSystem {
         }
     }
 
-    // For the early revision, we will generate placeholder graphics if files are missing
-    // to ensure the game is playable immediately.
-    async loadImages(imageLists) {
-        const promises = [];
-        for (const [name, src] of Object.entries(imageLists)) {
-            promises.push(new Promise((resolve) => {
+    /**
+     * Loads a map of images.
+     * @param {Object.<string, string>} imageMap - An object where keys are asset names and values are image source paths.
+     * @returns {Promise<void[]>} A promise that resolves when all images have either loaded or failed.
+     */
+    async loadImages(imageMap) {
+        const promises = Object.entries(imageMap).map(([name, src]) => {
+            return new Promise((resolve) => {
                 const img = new Image();
                 img.src = src;
                 img.onload = () => {
@@ -29,49 +42,91 @@ export default class AssetSystem {
                 };
                 img.onerror = (e) => {
                     console.warn(`Failed to load image: ${src}`, e);
-                    resolve(); // Resolve anyway to prevent blocking
+                    // Resolve anyway to prevent blocking the entire asset loading process.
+                    // The RenderSystem is expected to handle missing images.
+                    resolve();
                 };
-            }));
-        }
+            });
+        });
         return Promise.all(promises);
     }
 
-    async loadAudio(audioLists) {
-        const promises = [];
-        // We need a context to decode, but we don't want to start the main AudioContext yet.
-        // We use a temporary one or check for window.
+    /**
+     * Loads and decodes a map of audio files.
+     * @param {Object.<string, string>} audioMap - An object where keys are asset names and values are audio source paths.
+     * @returns {Promise<void[]>} A promise that resolves when all audio files have been processed.
+     */
+    async loadAudio(audioMap) {
         const AudioCtor = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtor) return Promise.resolve();
+        if (!AudioCtor) {
+            console.warn('Web Audio API is not supported in this browser.');
+            return Promise.resolve();
+        }
         
-        if (!this.audioContext) this.audioContext = new AudioCtor();
+        if (!this.audioContext) {
+            try {
+                this.audioContext = new AudioCtor();
+            } catch (e) {
+                console.error("Could not create AudioContext:", e);
+                return Promise.resolve();
+            }
+        }
 
-        for (const [name, src] of Object.entries(audioLists)) {
-            promises.push(fetch(src)
-                .then(response => response.arrayBuffer())
+        const promises = Object.entries(audioMap).map(([name, src]) => {
+            return fetch(src)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.arrayBuffer();
+                })
                 .then(arrayBuffer => this.audioContext.decodeAudioData(arrayBuffer))
                 .then(audioBuffer => {
                     this.audio[name] = audioBuffer;
                 })
-                .catch(e => console.warn(`Failed to load audio: ${src}`, e))
-            );
-        }
+                .catch(e => {
+                    console.warn(`Failed to load audio: ${src}`, e);
+                    // Resolve promise even on failure to avoid blocking Promise.all
+                });
+        });
         return Promise.all(promises);
     }
 
+    /**
+     * Retrieves a loaded image by name.
+     * @param {string} name - The name of the image asset.
+     * @returns {?HTMLImageElement} The image element, or null if not found.
+     */
     getImage(name) {
-        return this.images[name] || null; // RenderSystem handles null by drawing a colored rect
+        return this.images[name] || null;
     }
 
+    /**
+     * Retrieves a loaded audio buffer by name.
+     * @param {string} name - The name of the audio asset.
+     * @returns {?AudioBuffer} The audio buffer, or null if not found.
+     */
     getAudio(name) {
         return this.audio[name] || null;
     }
 
+    /**
+     * Loads all core JSON configuration files.
+     * @returns {Promise<Object>} A promise that resolves to an object containing all loaded configs.
+     */
     async loadAll() {
-        const global = await this.loadConfig('./scripts/global.json');
-        const items = await this.loadConfig('./scripts/items.json');
-        const enemies = await this.loadConfig('./scripts/enemies.json');
-        const net = await this.loadConfig('./scripts/networking.json');
-        
-        return { global, items, enemies, net };
+        const configFiles = {
+            global: './scripts/global.json',
+            items: './scripts/items.json',
+            enemies: './scripts/enemies.json',
+            net: './scripts/networking.json',
+        };
+
+        const promises = Object.entries(configFiles).map(([name, path]) => {
+            return this.loadConfig(path).then(data => ({ [name]: data }));
+        });
+
+        const configs = await Promise.all(promises);
+        return configs.reduce((acc, curr) => ({ ...acc, ...curr }), {});
     }
 }

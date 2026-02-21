@@ -1,32 +1,45 @@
+/**
+ * Manages all audio for the game, including music, sound effects, spatial audio, and procedural audio generation.
+ */
 export default class AudioSystem {
     constructor() {
         const AudioCtor = window.AudioContext || window.webkitAudioContext;
         if (AudioCtor) {
-            this.ctx = new AudioCtor();
-            this.enabled = true;
-            
-            // Master Gain for global volume control
-            this.masterGain = this.ctx.createGain();
-            this.masterGain.gain.value = 0.4; // Default to 40% to prevent clipping
-            this.masterGain.connect(this.ctx.destination);
+            try {
+                this.ctx = new AudioCtor();
+                this.enabled = true;
+                
+                // Master Gain for global volume control
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.gain.value = 0.4; // Default to 40% to prevent clipping
+                this.masterGain.connect(this.ctx.destination);
 
-            this.buffers = {};
-            this.assetLoader = null;
-            this.listenerPos = null;
-            this.musicSource = null;
+                /** @type {Object.<string, AudioBuffer>} */
+                this.buffers = {};
+                /** @type {?import('./AssetSystem.js').default} */
+                this.assetLoader = null;
+                this.listenerPos = null;
+                /** @type {?AudioBufferSourceNode} */
+                this.musicSource = null;
 
-            // Generate high-fidelity procedural assets immediately
-            this.generateGrimdarkAssets();
+                this.generateGrimdarkAssets();
+            } catch (e) {
+                console.error("Failed to create AudioContext:", e);
+                this.enabled = false;
+            }
         } else {
             console.warn("AudioContext not supported");
             this.enabled = false;
         }
     }
 
+    /**
+     * Sets the asset loader instance and loads initial audio assets.
+     * @param {import('./AssetSystem.js').default} loader - The asset loader instance.
+     * @returns {Promise<void[]>}
+     */
     setAssetLoader(loader) {
         this.assetLoader = loader;
-
-        // Load Sword Sounds & Music
         return this.assetLoader.loadAudio({
             'sword1': './assets/audio/weapon/sword1.mp3',
             'sword2': './assets/audio/weapon/sword2.mp3',
@@ -39,32 +52,39 @@ export default class AudioSystem {
         });
     }
 
+    /**
+     * Resumes the audio context if it is suspended.
+     */
     resume() {
         if (this.enabled && this.ctx.state === 'suspended') {
-            this.ctx.resume();
+            this.ctx.resume().catch(e => console.error("AudioContext resume failed:", e));
         }
     }
 
+    /**
+     * Unlocks the audio context, typically after a user interaction.
+     */
     unlock() {
-        if (this.enabled) {
-            if (this.ctx.state === 'suspended') {
-                this.ctx.resume();
-            }
-            // Play a silent buffer to force the audio subsystem to unlock on mobile
-            const buffer = this.ctx.createBuffer(1, 1, 22050);
-            const source = this.ctx.createBufferSource();
-            source.buffer = buffer;
-            source.connect(this.ctx.destination);
-            source.start(0);
-        }
+        if (!this.enabled) return;
+        this.resume();
+        // Play a silent buffer to force the audio subsystem to unlock on some browsers (e.g., mobile).
+        const buffer = this.ctx.createBuffer(1, 1, 22050);
+        const source = this.ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(this.ctx.destination);
+        source.start(0);
     }
 
+    /**
+     * Generates procedural audio assets and stores them in the buffers cache.
+     * @private
+     */
     async generateGrimdarkAssets() {
         if (!this.enabled) return;
         
-        // Consolidated Impact Sound (Used for Attack and Hit)
-        const createImpactSound = (ctx) => {
-            // 1. Low Thud (Kick)
+        // Impact Sound (Used for Attack and Hit)
+        this.buffers['hit'] = await this.renderProceduralSound(0.4, (ctx) => {
+            // Low-frequency thud
             const osc = ctx.createOscillator();
             osc.type = 'triangle';
             osc.frequency.setValueAtTime(120, 0);
@@ -76,7 +96,7 @@ export default class AudioSystem {
             osc.connect(oscGain);
             oscGain.connect(ctx.destination);
 
-            // 2. Wet Squelch (Filtered Noise)
+            // White noise with a low-pass filter for a "squelch" effect
             const noise = ctx.createBufferSource();
             const nBuf = ctx.createBuffer(1, ctx.length, ctx.sampleRate);
             const data = nBuf.getChannelData(0);
@@ -98,58 +118,47 @@ export default class AudioSystem {
 
             osc.start();
             noise.start();
-        };
+        });
 
-        const impactBuffer = await this.renderProceduralSound(0.4, createImpactSound);
-        this.buffers['hit'] = impactBuffer;
-
-        // Grit Step
+        // Footstep sound
         this.buffers['step'] = await this.renderProceduralSound(0.1, (ctx) => {
-            // Legacy Sine Step (Restored)
             const osc = ctx.createOscillator();
             osc.type = 'sine';
             osc.frequency.setValueAtTime(50, 0);
-
             const gain = ctx.createGain();
             gain.gain.setValueAtTime(0.05, 0);
             gain.gain.exponentialRampToValueAtTime(0.01, 0.05);
-
             osc.connect(gain);
             gain.connect(ctx.destination);
             osc.start();
         });
 
-        // Pickup Chime
+        // Item pickup chime
         this.buffers['pickup'] = await this.renderProceduralSound(0.5, (ctx) => {
             const osc = ctx.createOscillator();
             osc.type = 'sine';
             osc.frequency.setValueAtTime(800, 0);
             osc.frequency.exponentialRampToValueAtTime(1200, 0.1);
-
             const gain = ctx.createGain();
             gain.gain.setValueAtTime(0.3, 0);
             gain.gain.exponentialRampToValueAtTime(0.01, 0.5);
-
             osc.connect(gain);
             gain.connect(ctx.destination);
             osc.start();
         });
 
-        // Bump Thud
+        // Wall bump thud
         this.buffers['bump'] = await this.renderProceduralSound(0.1, (ctx) => {
             const osc = ctx.createOscillator();
             osc.type = 'square';
             osc.frequency.setValueAtTime(80, 0);
             osc.frequency.exponentialRampToValueAtTime(10, 0.1);
-
             const filter = ctx.createBiquadFilter();
             filter.type = 'lowpass';
             filter.frequency.value = 200;
-
             const gain = ctx.createGain();
             gain.gain.setValueAtTime(0.5, 0);
             gain.gain.exponentialRampToValueAtTime(0.01, 0.1);
-
             osc.connect(filter);
             filter.connect(gain);
             gain.connect(ctx.destination);
@@ -157,28 +166,55 @@ export default class AudioSystem {
         });
     }
 
+    /**
+     * Renders a procedural sound into an AudioBuffer using an OfflineAudioContext.
+     * @param {number} duration - The duration of the sound in seconds.
+     * @param {function(OfflineAudioContext): void} setupFn - A function that sets up the audio graph on the provided context.
+     * @returns {Promise<AudioBuffer>} The rendered audio buffer.
+     * @private
+     */
     async renderProceduralSound(duration, setupFn) {
-        // OfflineAudioContext allows us to render complex audio graphs into a static buffer
-        // This provides "asset-like" performance with zero network load.
         const offlineCtx = new OfflineAudioContext(1, 44100 * duration, 44100);
         setupFn(offlineCtx);
         return await offlineCtx.startRendering();
     }
 
+    /**
+     * Updates the position of the listener for spatial audio.
+     * @param {number} x - The x-coordinate of the listener.
+     * @param {number} y - The y-coordinate of the listener.
+     */
     updateListener(x, y) {
         this.listenerPos = { x, y };
     }
 
+    /**
+     * Plays a sound effect.
+     * @param {string} effect - The name of the effect to play.
+     * @param {number} [x] - The x-coordinate of the sound source for spatialization.
+     * @param {number} [y] - The y-coordinate of the sound source for spatialization.
+     */
     play(effect, x, y) {
         if (!this.enabled) return;
-        if (this.enabled && this.ctx.state === 'suspended') {
-            this.ctx.resume();
-        }
+        this.resume();
 
+        const { buffer, volumeScale } = this._getSoundBuffer(effect);
+        if (!buffer) return;
+
+        const source = this.ctx.createBufferSource();
+        source.buffer = buffer;
+
+        let outputNode = this._applySpatialization(source, x, y);
+        outputNode = this._applyRandomization(source, outputNode, volumeScale);
+        
+        outputNode.connect(this.masterGain);
+        source.start();
+    }
+
+    _getSoundBuffer(effect) {
         let targetEffect = effect;
         let volumeScale = 1.0;
 
-        // Randomize Attack Sound
         if (effect === 'attack') {
             const idx = Math.floor(Math.random() * 5) + 1;
             targetEffect = `sword${idx}`;
@@ -188,59 +224,57 @@ export default class AudioSystem {
             volumeScale = 0.5;
         }
 
-        // Priority: 1. Generated Buffer, 2. Loaded Asset
-        let buffer = this.buffers[targetEffect] || (this.assetLoader && this.assetLoader.getAudio(targetEffect));
+        const buffer = this.buffers[targetEffect] || (this.assetLoader && this.assetLoader.getAudio(targetEffect));
+        return { buffer, volumeScale };
+    }
 
-        if (!buffer) return;
-
-        const source = this.ctx.createBufferSource();
-        source.buffer = buffer;
-
+    _applySpatialization(source, x, y) {
         const gainNode = this.ctx.createGain();
-        
-        // Spatial Audio Logic
         if (x !== undefined && y !== undefined && this.listenerPos) {
             const dx = x - this.listenerPos.x;
             const dy = y - this.listenerPos.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
             const maxDist = 24;
 
-            if (dist > maxDist) return; // Too far to hear
+            if (dist > maxDist) {
+                gainNode.gain.value = 0; // Too far to hear
+            } else {
+                gainNode.gain.value = Math.max(0, 1 - (dist / maxDist));
+            }
 
-            // Distance Attenuation (Linear)
-            const vol = Math.max(0, 1 - (dist / maxDist));
-            volumeScale *= vol;
-
-            // Stereo Panning
             const panner = this.ctx.createStereoPanner();
-            // Map X distance to -1 (left) to 1 (right)
-            // We use a narrower field for panning than audibility to keep it distinct
             const pan = Math.max(-1, Math.min(1, dx / (maxDist / 2)));
             panner.pan.value = pan;
             
             source.connect(panner);
             panner.connect(gainNode);
-        } else {
-            source.connect(gainNode);
+            return gainNode;
         }
-
-        // Pitch Randomization (±200 cents / ±2 semitones)
-        // This prevents the "machine gun" effect on repeated sounds
-        const detune = (Math.random() * 400) - 200; 
-        source.detune.value = detune;
-
-        // Volume Randomization (0.8x to 1.2x)
-        const volVariance = 0.8 + (Math.random() * 0.4);
-        gainNode.gain.value = volVariance * volumeScale;
-
-        gainNode.connect(this.masterGain);
         
-        source.start();
+        source.connect(gainNode);
+        return gainNode;
     }
 
+    _applyRandomization(source, inputNode, volumeScale) {
+        const detune = (Math.random() * 400) - 200; // Pitch variation: +/- 2 semitones
+        source.detune.value = detune;
+
+        const volVariance = 0.8 + (Math.random() * 0.4); // Volume variation: 80% to 120%
+        if (inputNode.gain) {
+            inputNode.gain.value *= volVariance * volumeScale;
+        }
+        
+        return inputNode;
+    }
+
+    /**
+     * Plays background music.
+     * @param {string} key - The name of the music track to play.
+     */
     playMusic(key) {
         if (!this.enabled) return;
         this.stopMusic();
+        this.resume();
 
         const buffer = this.buffers[key] || (this.assetLoader && this.assetLoader.getAudio(key));
         if (!buffer) return;
@@ -259,11 +293,17 @@ export default class AudioSystem {
         this.musicSource = source;
     }
 
+    /**
+     * Stops the currently playing background music.
+     */
     stopMusic() {
         if (this.musicSource) {
             try {
                 this.musicSource.stop();
-            } catch (e) {}
+            } catch (e) {
+                // It's possible the source was already stopped or never started.
+                console.warn("Could not stop music source:", e.message);
+            }
             this.musicSource = null;
         }
     }
