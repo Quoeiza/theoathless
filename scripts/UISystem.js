@@ -141,7 +141,7 @@ export default class UISystem {
                 display: 'none',
                 zIndex: '2000',
                 fontSize: '12px',
-                fontFamily: 'monospace',
+                fontFamily: '"Germania One", cursive',
                 whiteSpace: 'nowrap',
                 boxShadow: '0 2px 4px rgba(0,0,0,0.5)'
             });
@@ -322,7 +322,7 @@ export default class UISystem {
                 color: '#eee',
                 borderBottom: '1px solid #333',
                 fontSize: '14px',
-                fontFamily: 'sans-serif'
+                fontFamily: '"Germania One", cursive'
             });
             el.onmouseover = () => el.style.background = '#333';
             el.onmouseout = () => el.style.background = 'transparent';
@@ -368,7 +368,7 @@ export default class UISystem {
             zIndex: '2000',
             textAlign: 'center',
             color: 'white',
-            fontFamily: 'sans-serif',
+            fontFamily: '"Germania One", cursive',
             pointerEvents: 'auto'
         });
 

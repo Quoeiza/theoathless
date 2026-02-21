@@ -1,6 +1,5 @@
 /* FONT IMPORTS AND ROOT VARIABLES */
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@400;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Bokor:wght@400;700&family=Lato:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Germania+One&display=swap');
 
 :root {
     --steel-dark: #1a1a1a;
@@ -23,7 +22,7 @@ body, html {
     height: 100%;
     overflow: hidden;
     background-color: #050505;
-    font-family: 'Lato', sans-serif;
+    font-family: 'Germania One', cursive;
     color: var(--text-light);
     display: flex; /* Kept from original main.css for centering canvas */
     justify-content: center;
@@ -31,7 +30,7 @@ body, html {
 }
 
 h1, h2, h3, button, .header-font {
-    font-family: 'Cinzel', serif;
+    font-family: 'Germania One', cursive;
 }
 
 /* LAYOUT & CORE ELEMENTS */
@@ -66,8 +65,7 @@ button {
     color: var(--parchment);
     padding: 10px 20px;
     font-size: 16px;
-    font-weight: bold;
-    text-transform: uppercase;
+    text-transform: capitalize;
     cursor: pointer;
     border-radius: 4px;
     transition: transform 0.1s, filter 0.1s;
@@ -90,7 +88,7 @@ input, select {
     border: 1px solid var(--steel-light);
     color: var(--parchment);
     padding: 10px;
-    font-family: 'Lato', sans-serif;
+    font-family: 'Germania One', cursive;
     border-radius: 2px;
 }
 
@@ -126,11 +124,12 @@ input, select {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 2vh;
-    width: 30%;
+    width: 55vh;
+    min-width: auto;
     height: 100%;
-    padding: 4vh 0;
+    padding: 4vh;
     box-sizing: border-box;
     z-index: 101;
 }
@@ -139,10 +138,10 @@ input, select {
     display: flex;
     flex-direction: column;
     gap: 2vh;
-    width: 90%;
+    width: 100%;
     box-sizing: border-box;
-    flex: 1;
-    justify-content: center;
+    flex: none;
+    justify-content: flex-start;
 }
 
 .join-row {
@@ -167,13 +166,12 @@ input, select {
     font-size: 7vh;
     padding: 0.5vh;
     text-align: center;
-    text-transform: uppercase;
+    text-transform: capitalize;
 }
 
 #game-logo {
-    max-width: 100%;
-    height: auto;
-    max-height: 30vh;
+    height: 30vh;
+    width: auto;
     filter: drop-shadow(0 0 1vh rgba(0,0,0,0.8));
 }
 
@@ -187,9 +185,9 @@ input, select {
     padding: 10px 10px;
     box-sizing: border-box;
     color: var(--text-light);
-    font-family: 'Lato', sans-serif;
+    font-family: 'Germania One', cursive;
     font-size: 2vh;
-    text-transform: uppercase;
+    text-transform: capitalize;
     letter-spacing: 1px;
     z-index: 102;
 }
@@ -205,6 +203,7 @@ input, select {
     }
     .lobby-panel {
         width: 100%;
+        min-width: 450px;
         height: 100%;
         border-left: none;
         padding: 2vh 5vw;
@@ -213,6 +212,7 @@ input, select {
     }
     #game-logo {
         max-width: 100%;
+        height: auto;
         max-height: 30vh;
     }
     .lobby-panel input, .lobby-panel select, .lobby-panel button {
@@ -246,8 +246,7 @@ input, select {
     left: 50%;
     transform: translateX(-50%);
     font-size: 24px;
-    font-family: 'Cinzel', serif;
-    font-weight: bold;
+    font-family: 'Germania One', cursive;
     text-shadow: 2px 2px 0 #000;
     background: rgba(0,0,0,0.6);
     padding: 5px 15px;
@@ -259,7 +258,7 @@ input, select {
     position: absolute;
     top: 20px;
     right: 20px;
-    font-family: 'Cinzel', serif;
+    font-family: 'Germania One', cursive;
     color: var(--text-light);
     padding: 5px 10px;
     background: transparent !important;
@@ -272,7 +271,7 @@ input, select {
     display: flex;
     flex-direction: column;
     gap: 5px;
-    font-family: 'Cinzel', serif;
+    font-family: 'Germania One', cursive;
     text-shadow: 1px 1px 0 #000;
 }
 
@@ -291,7 +290,7 @@ input, select {
     top: 100px;
     left: 50%;
     transform: translateX(-50%);
-    font-family: 'Cinzel', serif;
+    font-family: 'Germania One', cursive;
     color: var(--gold);
     font-size: 20px;
     text-shadow: 1px 1px 0 #000;
@@ -443,7 +442,6 @@ input, select {
     font-size: 10px;
     color: white;
     text-shadow: 1px 1px 0 #000;
-    font-weight: bold;
 }
 
 #btn-inventory-toggle {
@@ -541,5 +539,4 @@ input, select {
 
 .highlight {
     color: var(--gold); /* Use theme color */
-    font-weight: bold;
 }

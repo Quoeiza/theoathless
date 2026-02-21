@@ -908,7 +908,7 @@ export default class RenderSystem {
             else scale = 1.4 - ((progress - 0.2) * 0.5);
 
             this.ctx.fillStyle = t.color;
-            this.ctx.font = `bold ${Math.max(8, Math.floor(10 * scale))}px "Courier New"`;
+            this.ctx.font = `bold ${Math.max(8, Math.floor(10 * scale))}px "Germania One"`;
             this.ctx.globalAlpha = 1 - Math.pow(progress, 3); // Fade out
             this.ctx.fillText(t.text, screenX, screenY);
             this.ctx.globalAlpha = 1.0;
