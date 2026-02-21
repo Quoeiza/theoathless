@@ -7,33 +7,72 @@ export default class PeerClient extends EventEmitter {
         this.peer = null;
         this.connections = [];
         this.isHost = false;
+        this.isScanning = false;
     }
 
     init(id = null) {
         // In a real implementation, we would import PeerJS from a CDN or bundle
-        // Assuming global Peer object exists via script tag in index.html
         try {
             this.peer = new Peer(id, {
                 debug: this.config.peerConfig.debug,
                 config: { iceServers: this.config.stunServers }
             });
-
-            this.peer.on('open', (id) => {
-                console.log('My peer ID is: ' + id);
-                this.emit('ready', id);
-            });
-
-            this.peer.on('connection', (conn) => {
-                this.handleConnection(conn);
-            });
-
-            this.peer.on('error', (err) => {
-                console.error(err);
-                this.emit('error', err);
-            });
+            this._bindPeerEvents();
         } catch (e) {
             console.error("PeerJS not loaded", e);
         }
+    }
+
+    async initHost() {
+        // Try to acquire a Public Room ID (PUB0 - PUB9)
+        for (let i = 0; i < 10; i++) {
+            const id = `coldcoin-PUB${i}`;
+            const success = await new Promise(resolve => {
+                const p = new Peer(id, {
+                    debug: this.config.peerConfig.debug,
+                    config: { iceServers: this.config.stunServers }
+                });
+                
+                const onError = (err) => {
+                    p.destroy();
+                    resolve(false);
+                };
+
+                p.on('error', onError);
+                p.on('open', (id) => {
+                    p.off('error', onError);
+                    this.peer = p;
+                    this._bindPeerEvents();
+                    console.log('My peer ID is: ' + id);
+                    this.emit('ready', id);
+                    resolve(true);
+                });
+            });
+            if (success) return;
+        }
+
+        // Fallback to random ID if all public slots are full
+        const randomId = `coldcoin-${this.generateRoomId()}`;
+        this.init(randomId);
+    }
+
+    _bindPeerEvents() {
+        if (!this.peer) return;
+
+        this.peer.on('open', (id) => {
+            console.log('My peer ID is: ' + id);
+            this.emit('ready', id);
+        });
+
+        this.peer.on('connection', (conn) => {
+            this.handleConnection(conn);
+        });
+
+        this.peer.on('error', (err) => {
+            console.error(err);
+            if (this.isScanning && err.type === 'peer-unavailable') return;
+            this.emit('error', err);
+        });
     }
 
     connect(hostId, metadata = {}) {
@@ -87,15 +126,40 @@ export default class PeerClient extends EventEmitter {
     }
 
     async scanForSessions() {
-        // Placeholder: In a real P2P mesh without a directory server, scanning is difficult.
-        // Returning mock rooms with timestamps in the ID string as requested.
-        // Format: coldcoin-{CODE}-{START_TIMESTAMP}
-        return new Promise(resolve => {
-            setTimeout(() => resolve([
-                { id: `coldcoin-ALPHA-${Date.now() - 60000}`, ping: 50 },  // Started 1 min ago
-                { id: `coldcoin-BETA-${Date.now() - 300000}`, ping: 120 }, // Started 5 mins ago
-                { id: `coldcoin-GAMMA-${Date.now() - 10000}`, ping: 450 }  // Started 10s ago (High Ping)
-            ]), 1000);
-        });
+        this.isScanning = true;
+        const sessions = [];
+        const promises = [];
+
+        // Scan PUB0 to PUB9
+        for (let i = 0; i < 10; i++) {
+            promises.push(new Promise(resolve => {
+                const start = Date.now();
+                const conn = this.peer.connect(`coldcoin-PUB${i}`, { reliable: true });
+                let resolved = false;
+
+                const cleanup = () => {
+                    if (!resolved) { resolved = true; conn.close(); resolve(); }
+                };
+
+                // Timeout after 1.5s
+                setTimeout(cleanup, 1500);
+
+                conn.on('open', () => {
+                    conn.send({ type: 'DISCOVERY_REQUEST' });
+                });
+
+                conn.on('data', (data) => {
+                    if (data && data.type === 'DISCOVERY_RESPONSE') {
+                        sessions.push({ id: `coldcoin-PUB${i}`, ...data.payload, ping: Date.now() - start });
+                        cleanup();
+                    }
+                });
+                conn.on('error', cleanup);
+            }));
+        }
+
+        await Promise.all(promises);
+        this.isScanning = false;
+        return sessions;
     }
 }

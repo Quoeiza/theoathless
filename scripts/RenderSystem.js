@@ -683,7 +683,7 @@ export default class RenderSystem {
             // Resolve HP from CombatSystem if missing on entity (e.g. local GridSystem entity)
             let hp = pos.hp;
             let maxHp = pos.maxHp;
-            if (hp === undefined && this.combatSystem) {
+            if ((hp === undefined || maxHp === undefined) && this.combatSystem) {
                 const stats = this.combatSystem.getStats(id);
                 if (stats) {
                     hp = stats.hp;
@@ -1242,7 +1242,7 @@ export default class RenderSystem {
                         const facingX = visual.lastFacingX !== undefined ? visual.lastFacingX : (pos.facing ? pos.facing.x : -1);
                         const spriteW = img.width;
                         const spriteH = img.height;
-                        let drawX = Math.floor(-spriteW / 2);
+                        let drawX = -spriteW / 2;
 
                         if (facingX > 0) {
                             sCtx.scale(-1, 1);
@@ -1261,17 +1261,17 @@ export default class RenderSystem {
                                 const chevronDepth = spriteH * 0.4;
                                 const level = (progress * (spriteH + chevronDepth)) - chevronDepth;
                                 sCtx.beginPath();
-                                sCtx.moveTo(drawX, Math.floor(drawY + spriteH));
-                                sCtx.lineTo(drawX + spriteW, Math.floor(drawY + spriteH));
-                                sCtx.lineTo(drawX + spriteW, Math.floor(drawY + Math.max(0, level + chevronDepth)));
-                                sCtx.lineTo(drawX + (spriteW / 2), Math.floor(drawY + Math.max(0, level)));
-                                sCtx.lineTo(drawX, Math.floor(drawY + Math.max(0, level + chevronDepth)));
+                                sCtx.moveTo(drawX, drawY + spriteH);
+                                sCtx.lineTo(drawX + spriteW, drawY + spriteH);
+                                sCtx.lineTo(drawX + spriteW, drawY + Math.max(0, level + chevronDepth));
+                                sCtx.lineTo(drawX + (spriteW / 2), drawY + Math.max(0, level));
+                                sCtx.lineTo(drawX, drawY + Math.max(0, level + chevronDepth));
                                 sCtx.closePath();
                                 sCtx.clip();
-                                sCtx.drawImage(img, drawX, Math.floor(drawY), spriteW, spriteH);
+                                sCtx.drawImage(img, drawX, drawY, spriteW, spriteH);
                             }
                         } else {
-                            sCtx.drawImage(img, drawX, Math.floor(drawY), spriteW, spriteH);
+                            sCtx.drawImage(img, drawX, drawY, spriteW, spriteH);
                         }
                     } else {
                         sCtx.beginPath();
@@ -1385,9 +1385,8 @@ export default class RenderSystem {
 
         ctx.globalCompositeOperation = 'source-over';
         const colorGrad = ctx.createRadialGradient(sx, sy, 0, sx, sy, currentRadius);
-        colorGrad.addColorStop(0.15, `hsla(${25 + hueShift}, 100%, 75%, 0.75)`);
-        colorGrad.addColorStop(0.5, `hsla(${25 + hueShift}, 100%, 60%, 0.6)`);
-        colorGrad.addColorStop(0.75, `hsla(${25 + hueShift}, 100%, 40%, 0.2)`);
+        colorGrad.addColorStop(0.15, `hsla(${25 + hueShift}, 100%, 80%, 0.7)`);
+        colorGrad.addColorStop(0.5, `hsla(${25 + hueShift}, 100%, 60%, 0.4)`);
         colorGrad.addColorStop(0.85, 'rgba(0, 0, 0, 0)');
         ctx.fillStyle = colorGrad;
         ctx.beginPath();
@@ -1524,18 +1523,6 @@ export default class RenderSystem {
     }
 
     render(grid, entities, loot, projectiles, interaction, localPlayerId) {
-        // Safety check for uninitialized grid (Client waiting for INIT_WORLD)
-        if (!grid || !grid.length || !grid[0]) {
-            this.clear();
-            this.ctx.save();
-            this.ctx.fillStyle = '#ffffff';
-            this.ctx.font = '24px monospace';
-            this.ctx.textAlign = 'center';
-            this.ctx.fillText("Connecting to Host...", this.canvas.width / 2, this.canvas.height / 2);
-            this.ctx.restore();
-            return;
-        }
-
         // Check if we need to update static cache
         if (this.gridSystem && this.gridSystem.revision !== this.lastGridRevision) {
             this.updateStaticCache(grid);
@@ -1599,9 +1586,19 @@ export default class RenderSystem {
             this.ctx.translate(dx, dy);
         }
 
-        this.drawFloor(grid, grid[0].length, grid.length);
-        this.drawWalls(grid, grid[0].length, grid.length);
-        this.drawLoot(loot);
+        const hasGrid = grid && grid.length && grid[0];
+
+        if (hasGrid) {
+            this.drawFloor(grid, grid[0].length, grid.length);
+            this.drawWalls(grid, grid[0].length, grid.length);
+            this.drawLoot(loot);
+        } else {
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.font = '24px "Germania One"';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText("Downloading Map...", 0, 0);
+        }
+
         this.updateAndDrawParticles();
         
         // 2. Draw Entities & Projectiles (Before Roofs/Ambient)
@@ -1610,10 +1607,12 @@ export default class RenderSystem {
         this.drawEffects();
 
         // 3. Update Shadow Buffer (Offscreen) - Moved after entities to use updated positions
-        this.drawShadowLayer(grid, this.visualEntities.get(localPlayerId), entities);
+        if (hasGrid) {
+            this.drawShadowLayer(grid, this.visualEntities.get(localPlayerId), entities);
         
-        // 4. Draw Roofs (Occludes entities)
-        this.drawRoof(grid, grid[0].length, grid.length);
+            // 4. Draw Roofs (Occludes entities)
+            this.drawRoof(grid, grid[0].length, grid.length);
+        }
 
         this.drawHPBars();
 

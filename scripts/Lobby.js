@@ -47,7 +47,7 @@ export function setupLobby(uiLayer, playerData, onHost, onJoin, onQuickJoin) {
     const codeInput = document.getElementById('room-code-input');
     codeInput.maxLength = 4;
     codeInput.addEventListener('input', (e) => {
-        e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '').toUpperCase();
+        e.target.value = e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     });
 
     document.getElementById('btn-host').onclick = () => {

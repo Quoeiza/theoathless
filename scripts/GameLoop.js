@@ -143,23 +143,15 @@ export default class GameLoop {
             this.uiSystem.showNotification("Scanning for sessions...");
             try {
                 const sessions = await this.peerClient.scanForSessions();
-                
-                // Filter for stable ping and valid ID string, then sort by time remaining derived from ID string
-                const valid = sessions.filter(s => s.ping < 300 && s.id.includes('coldcoin-')).sort((a, b) => {
-                    const getTime = (id) => {
-                        const parts = id.split('-');
-                        // Format: coldcoin-CODE-TIMESTAMP
-                        return parts.length >= 3 ? parseInt(parts[2]) : 0;
-                    };
-                    // Sort by latest start time (highest timestamp) -> effectively least time elapsed / most remaining
-                    return getTime(b.id) - getTime(a.id);
-                });
+                // Sort by highest game time remaining (gameTime is sent in payload)
+                const valid = sessions.sort((a, b) => b.gameTime - a.gameTime);
                 
                 if (valid.length > 0) {
                     const best = valid[0];
                     const parts = best.id.split('-');
                     const displayId = parts.length >= 2 ? parts[1] : best.id;
                     this.uiSystem.showNotification(`Joining Room ${displayId}...`);
+                    document.getElementById('room-code-display').innerText = `Room: ${displayId}`;
                     this.peerClient.connect(best.id, { name: this.playerData.name, class: this.playerData.class, gold: this.playerData.gold });
                 } else {
                     this.uiSystem.showNotification("No suitable sessions found.");
@@ -170,6 +162,12 @@ export default class GameLoop {
                 this.uiSystem.showNotification("Quick Join Failed.");
                 setTimeout(() => location.reload(), 2000);
             }
+        });
+
+        this.peerClient.on('error', (err) => {
+            this.uiSystem.showNotification(`Connection Error: ${err.type}`);
+            // Reload on fatal errors or connection failures
+            if (['network', 'browser-incompatible', 'peer-unavailable', 'socket-error', 'socket-closed'].includes(err.type)) setTimeout(() => location.reload(), 2000);
         });
     }
 
@@ -194,8 +192,18 @@ export default class GameLoop {
 
         this.ticker.start();
 
-        const myPeerId = isHost ? `coldcoin-${this.peerClient.generateRoomId()}-${Date.now()}` : undefined;
-        this.peerClient.init(myPeerId);
+        this.peerClient.on('error', (err) => {
+            this.uiSystem.showNotification(`Connection Error: ${err.type}`);
+            // Only reload on fatal errors, not during ID hunting
+            if (['network', 'browser-incompatible', 'peer-unavailable', 'socket-error', 'socket-closed'].includes(err.type)) setTimeout(() => location.reload(), 2000);
+        });
+
+        if (isHost) {
+            this.peerClient.initHost();
+        } else {
+            this.peerClient.init(); // Client initializes with random ID
+        }
+
         this.peerClient.on('ready', (id) => {
             if (isHost) {
                 const parts = id.split('-');
@@ -416,6 +424,13 @@ export default class GameLoop {
 
         this.peerClient.on('data', ({ sender, data }) => {
             if (this.state.isHost) {
+                if (data.type === 'DISCOVERY_REQUEST') {
+                    this.peerClient.sendTo(sender, {
+                        type: 'DISCOVERY_RESPONSE',
+                        payload: { gameTime: this.state.gameTime, playerCount: this.combatSystem.getHumanCount() }
+                    });
+                    return;
+                }
                 if (data.type === 'INPUT') {
                     this.processPlayerInput(sender, data.payload);
                 }
@@ -531,6 +546,11 @@ export default class GameLoop {
                 this.lootSystem.addItemToEntity(peerId, 'armor_leather', 1);
                 this.sendInventoryUpdate(peerId);
             } else {
+                // Update room code display to ensure it shows the room we connected to
+                const parts = peerId.split('-');
+                const displayId = parts.length >= 2 ? parts[1] : peerId;
+                document.getElementById('room-code-display').innerText = `Room: ${displayId}`;
+
                 this.state.handshakeInterval = setInterval(() => {
                     if (!this.state.connected) this.peerClient.send({ type: 'HELLO' });
                 }, 500);
