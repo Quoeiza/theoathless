@@ -1154,7 +1154,7 @@ export default class GameLoop {
 
             this.state.netTimer += dt;
             if (this.state.netTimer >= 50) {
-                this.state.netTimer -= 50;
+                this.state.netTimer = 0; // Prevent packet bursting during lag spikes
                 
                 // 1. Prepare Global State Once (Heavy Lifting)
                 const globalSnap = this.syncManager.prepareGlobalSnapshot(
