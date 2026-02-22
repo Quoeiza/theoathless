@@ -646,10 +646,12 @@ export default class GameLoop {
                 this.sendInventoryUpdate(peerId);
 
                 // Send initial state right away
-                const snapshot = this.syncManager.serializeState(
-                    this.gridSystem, this.combatSystem, this.lootSystem,
-                    this.state.projectiles, this.state.gameTime,
-                    true // Full Sync (Includes Loot)
+                const globalSnap = this.syncManager.prepareGlobalSnapshot(
+                    this.gridSystem, this.combatSystem, 
+                    this.state.projectiles, this.state.gameTime
+                );
+                const snapshot = this.syncManager.createClientSnapshot(
+                    globalSnap, peerId, this.lootSystem // Pass lootSystem for Full Sync
                 );
                 this.peerClient.sendTo(peerId, {
                     type: NetworkEvents.INIT_WORLD,
@@ -793,6 +795,12 @@ export default class GameLoop {
             
             // Then sends to host for validation.
             this.state.inputBuffer.push(input);
+            
+            // Safety: Prevent buffer from growing indefinitely if connection hangs
+            if (this.state.inputBuffer.length > 200) {
+                this.state.inputBuffer.shift();
+            }
+            
             this.peerClient.send({ type: NetworkEvents.INPUT, payload: input });
         }
     }
@@ -814,7 +822,9 @@ export default class GameLoop {
             stats = this.combatSystem.getStats(entityId);
         }
 
-        const currentTick = this.ticker.tick;
+        // Fix: Use input tick for replays to ensure accurate cooldown reconciliation
+        const currentTick = isReplay ? input.tick : this.ticker.tick;
+        
         const cooldownMs = this.combatSystem.calculateCooldown(entityId, this.config.global.globalCooldownMs || 250);
         let cooldownTicks = this.calculateCooldownTicks(cooldownMs);
 
@@ -1143,14 +1153,25 @@ export default class GameLoop {
             }
 
             this.state.netTimer += dt;
-            if (this.state.netTimer >= 100) {
-                this.state.netTimer = 0;
-                const snapshot = this.syncManager.serializeState(
-                    this.gridSystem, this.combatSystem, this.lootSystem,
-                    this.state.projectiles, this.state.gameTime,
-                    false // Partial Sync (No Loot)
+            if (this.state.netTimer >= 50) {
+                this.state.netTimer -= 50;
+                
+                // 1. Prepare Global State Once (Heavy Lifting)
+                const globalSnap = this.syncManager.prepareGlobalSnapshot(
+                    this.gridSystem, this.combatSystem, 
+                    this.state.projectiles, this.state.gameTime
                 );
-                this.peerClient.send({ type: NetworkEvents.SNAPSHOT, payload: snapshot });
+
+                // Host Loop: Send unique, culled snapshots to each client
+                this.peerClient.connections.forEach(conn => {
+                    if (conn.open) {
+                        // 2. Filter for Client (Lightweight)
+                        const snapshot = this.syncManager.createClientSnapshot(
+                            globalSnap, conn.peer
+                        );
+                        conn.send({ type: NetworkEvents.SNAPSHOT, payload: snapshot });
+                    }
+                });
             }
 
             this.combatSystem.updateProjectiles(dt, this.state.projectiles, this.gridSystem);
@@ -1257,6 +1278,11 @@ export default class GameLoop {
             if (moveIntent) {
                 this.handleInput(moveIntent);
             } else {
+                // Execute buffered action if cooldown is ready
+                if (this.state.actionBuffer && this.ticker.tick >= this.state.nextInputTick) {
+                    this.executeAction(this.state.actionBuffer);
+                }
+                
                 if (this.state.actionBuffer && this.state.actionBuffer.type === 'MOVE') {
                     this.state.actionBuffer = null;
                 }
@@ -1306,7 +1332,9 @@ export default class GameLoop {
 
     monitorNetwork(data, isIncoming) {
         try {
-            const len = JSON.stringify(data).length;
+            // Optimization: Approximate size instead of JSON.stringify to avoid GC/CPU spikes
+            const len = data.payload ? (data.type === 'SNAPSHOT' ? (data.payload.e ? data.payload.e.length * 50 : 100) : 100) : 50;
+            
             if (isIncoming) {
                 this.debugStats.bytesIn += len;
                 this.debugStats.packetsIn++;
@@ -1315,7 +1343,6 @@ export default class GameLoop {
                     if (data.payload && data.payload.e) {
                         this.debugStats.lastSnapshotEntities = data.payload.e.length;
                     }
-                    if (len > 20000) console.warn("Large Snapshot:", len, data);
                 }
             } else {
                 this.debugStats.bytesOut += len;
@@ -1338,6 +1365,16 @@ export default class GameLoop {
             return; // No inputs to reconcile yet, so we're done.
         }
 
+        // Fix: Update spatial map before overwriting position to ensure collision detection remains accurate
+        if (Math.round(localPlayer.x) !== Math.round(serverPlayerState.x) || 
+            Math.round(localPlayer.y) !== Math.round(serverPlayerState.y)) {
+            this.gridSystem.updateSpatialMap(
+                this.state.myId, 
+                localPlayer.x, localPlayer.y, 
+                serverPlayerState.x, serverPlayerState.y
+            );
+        }
+
         // 1. Snap to server state
         Object.assign(localPlayer, serverPlayerState);
         
@@ -1353,7 +1390,13 @@ export default class GameLoop {
         
         // 2. Remove processed inputs
         const lastProcessed = serverPlayerState.lastProcessedInputTick || 0;
-        this.state.inputBuffer = this.state.inputBuffer.filter(input => input.tick > lastProcessed);
+        
+        // Optimization: Efficiently remove old inputs
+        if (this.state.inputBuffer.length > 0 && this.state.inputBuffer[0].tick <= lastProcessed) {
+            const firstNewIndex = this.state.inputBuffer.findIndex(input => input.tick > lastProcessed);
+            if (firstNewIndex === -1) this.state.inputBuffer = [];
+            else this.state.inputBuffer = this.state.inputBuffer.slice(firstNewIndex);
+        }
 
         // 3. Replay remaining inputs
         for (const input of this.state.inputBuffer) {

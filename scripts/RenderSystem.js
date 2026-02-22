@@ -78,6 +78,8 @@ export default class RenderSystem {
 
         // Render List Pooling
         this.renderList = [];
+        this.renderPool = []; // Pool for render items
+        this.renderPoolIndex = 0;
         this.meshVisited = new Set(); // Reuse Set for meshing to reduce GC
         this.explored = new Set(); // Track explored tiles for Auto-Explore
     }
@@ -403,6 +405,7 @@ export default class RenderSystem {
         // 2. Update Visual State & Prepare Render List
         this.renderList.length = 0;
         const renderList = this.renderList;
+        this.renderPoolIndex = 0;
 
         // Create a combined list of all entities we might need to render:
         // - All current visual entities
@@ -505,7 +508,16 @@ export default class RenderSystem {
                 if (Math.abs(targetOpacity - visual.opacity) < 0.01) visual.opacity = targetOpacity;
 
                 if (visual.opacity > 0.01) {
-                    renderList.push({ id, pos, visual });
+                    // Optimization: Object Pooling for Render List
+                    let item = this.renderPool[this.renderPoolIndex++];
+                    if (!item) {
+                        item = { id: null, pos: null, visual: null, screenX: 0, screenY: 0 };
+                        this.renderPool.push(item);
+                    }
+                    item.id = id;
+                    item.pos = pos;
+                    item.visual = visual;
+                    renderList.push(item);
                 }
             } else if (visual && visual.isDying && (now - visual.deathStart <= 1000)) {
                 // --- ENTITY IS DEAD, BUT ANIMATION IS PLAYING ---
@@ -516,7 +528,16 @@ export default class RenderSystem {
                     hp: 0, maxHp: 1, // Ensures no health bar is drawn
                     invisible: false 
                 };
-                renderList.push({ id, pos: fakePos, visual });
+                
+                let item = this.renderPool[this.renderPoolIndex++];
+                if (!item) {
+                    item = { id: null, pos: null, visual: null, screenX: 0, screenY: 0 };
+                    this.renderPool.push(item);
+                }
+                item.id = id;
+                item.pos = fakePos;
+                item.visual = visual;
+                renderList.push(item);
             } else {
                 // --- ENTITY IS GONE AND NOT ANIMATING ---
                 this.visualEntities.delete(id);

@@ -288,13 +288,16 @@ export default class GridSystem {
     }
 
     // Returns true if move successful
-    moveEntity(entityId, dx, dy) {
+    moveEntity(entityId, dx, dy, simulate = false) {
         const pos = this.entities.get(entityId);
         if (!pos) return false;
 
         // Update facing direction regardless of collision
-        if (dx !== 0 || dy !== 0) {
-            pos.facing = { x: dx, y: dy };
+        if (!simulate) {
+            if (dx !== 0 || dy !== 0) {
+                // Optimization: Only allocate new object if facing actually changes
+                pos.facing = { x: dx, y: dy };
+            }
         }
 
         const newX = pos.x + dx;
@@ -313,9 +316,12 @@ export default class GridSystem {
             if (otherId && otherId !== entityId) {
                 return { success: false, collision: otherId };
             }
-            this.updateSpatialMap(entityId, pos.x, pos.y, newX, newY);
-            pos.x = newX;
-            pos.y = newY;
+
+            if (!simulate) {
+                this.updateSpatialMap(entityId, pos.x, pos.y, newX, newY);
+                pos.x = newX;
+                pos.y = newY;
+            }
             return { success: true, x: newX, y: newY };
         }
         
@@ -328,7 +334,10 @@ export default class GridSystem {
     }
 
     updateSpatialMap(id, oldX, oldY, newX, newY) {
-        this.spatialMap.delete(this.getKey(oldX, oldY));
+        const oldKey = this.getKey(oldX, oldY);
+        if (this.spatialMap.get(oldKey) === id) {
+            this.spatialMap.delete(oldKey);
+        }
         this.spatialMap.set(this.getKey(newX, newY), id);
     }
 
@@ -730,16 +739,16 @@ export default class GridSystem {
         return dirs[octant];
     }
 
-    attemptMoveWithSlide(entityId, dx, dy) {
-        let result = this.moveEntity(entityId, dx, dy);
+    attemptMoveWithSlide(entityId, dx, dy, simulate = false) {
+        let result = this.moveEntity(entityId, dx, dy, simulate);
         
         if (!result.success && result.collision === 'wall') {
             if (dx !== 0 && dy !== 0) {
-                const resX = this.moveEntity(entityId, dx, 0);
+                const resX = this.moveEntity(entityId, dx, 0, simulate);
                 if (resX.success) {
                     return resX;
                 }
-                const resY = this.moveEntity(entityId, 0, dy);
+                const resY = this.moveEntity(entityId, 0, dy, simulate);
                 if (resY.success) {
                     return resY;
                 }
@@ -748,7 +757,7 @@ export default class GridSystem {
         return result;
     }
 
-    resolveMoveIntent(entityId, direction, lootSystem, ignoreLoot = false) {
+    resolveMoveIntent(entityId, direction, lootSystem, ignoreLoot = false, simulate = false) {
         const pos = this.entities.get(entityId);
         if (!pos) return { type: 'NONE' };
 
@@ -766,7 +775,7 @@ export default class GridSystem {
         }
 
         // 2. Attempt Move
-        const result = this.attemptMoveWithSlide(entityId, direction.x, direction.y);
+        const result = this.attemptMoveWithSlide(entityId, direction.x, direction.y, simulate);
         
         if (result.success) {
             return { type: 'MOVED', x: result.x, y: result.y };

@@ -3,23 +3,26 @@ export default class SyncManager {
         this.snapshotBuffer = [];
         // Delay interpolation to ensure we have a "next" frame to lerp to.
         // If latency + tickRate > delay, you get stutter. 250ms is a safe buffer.
-        this.interpolationDelay = 125;
+        this.interpolationDelay = 75;
         this.timeOffset = null; // Server Time - Client Time
         this.reusableEntities = new Map(); // Reuse to reduce GC
     }
 
-    serializeState(gridSystem, combatSystem, lootSystem, projectiles, gameTime, fullSync = false) {
-        // Create a lightweight snapshot of the game state
+    /**
+     * 1. Heavy Lifting: Serialize all entities ONCE per tick into a cached format.
+     */
+    prepareGlobalSnapshot(gridSystem, combatSystem, projectiles, gameTime) {
         const entities = [];
+        const entityMap = new Map(); // Optimization: Fast lookup for culling
+        
         for (const [id, pos] of gridSystem.entities) {
             const stats = combatSystem.getStats(id);
-            // Attach visual stats to the entity position data for rendering
-            // OPTIMIZATION: Use Array format instead of Object to save bandwidth on keys
-            // [0:id, 1:x, 2:y, 3:facingX, 4:facingY, 5:hp, 6:maxHp, 7:type, 8:team, 9:invisible, 10:nextActionTick, 11:lastProcessedInputTick]
-            entities.push([
+            
+            // Pre-calculate the serialized array
+            const data = [
                 id,
-                Number(pos.x.toFixed(2)),
-                Number(pos.y.toFixed(2)),
+                Math.round(pos.x * 100) / 100, // Faster than toFixed
+                Math.round(pos.y * 100) / 100,
                 pos.facing ? pos.facing.x : 0,
                 pos.facing ? pos.facing.y : 1,
                 stats ? Math.ceil(stats.hp) : 0,
@@ -29,17 +32,79 @@ export default class SyncManager {
                 pos.invisible ? 1 : 0,
                 stats ? stats.nextActionTick : 0,
                 stats ? stats.lastProcessedInputTick : 0
-            ]);
+            ];
+
+            // Store spatial data for culling + the serialized data reference
+            const entityObj = { id, x: pos.x, y: pos.y, data };
+            entities.push(entityObj);
+            entityMap.set(id, entityObj);
+        }
+
+        return {
+            t: Date.now(),
+            entities, // Array of {id, x, y, data}
+            entityMap,
+            projectiles,
+            gt: gameTime
+        };
+    }
+
+    /**
+     * 2. Lightweight: Filter the pre-serialized data for a specific client.
+     */
+    createClientSnapshot(globalSnapshot, recipientId, lootSystem = null) {
+        const VIEW_DIST = 24;
+        let centerX = 0;
+        let centerY = 0;
+
+        // Find recipient's position from the snapshot data (avoiding grid lookup)
+        let recipient = null;
+        if (globalSnapshot.entityMap) {
+            recipient = globalSnapshot.entityMap.get(recipientId);
+        } else {
+            recipient = globalSnapshot.entities.find(e => e.id === recipientId);
+        }
+
+        if (recipient) {
+            centerX = recipient.x;
+            centerY = recipient.y;
+        }
+
+        const visibleEntities = [];
+        
+        for (const entity of globalSnapshot.entities) {
+            // Always include self
+            if (entity.id === recipientId) {
+                visibleEntities.push(entity.data);
+                continue;
+            }
+            
+            // Simple Distance Check
+            const dx = Math.abs(entity.x - centerX);
+            const dy = Math.abs(entity.y - centerY);
+            
+            if (dx <= VIEW_DIST && dy <= VIEW_DIST) {
+                visibleEntities.push(entity.data);
+            }
+        }
+
+        // Filter Projectiles
+        const visibleProjectiles = [];
+        for (const p of globalSnapshot.projectiles) {
+             if (Math.abs(p.x - centerX) <= VIEW_DIST && Math.abs(p.y - centerY) <= VIEW_DIST) {
+                visibleProjectiles.push(p);
+            }
         }
 
         const snapshot = {
-            t: Date.now(),
-            e: entities,
-            p: projectiles || [],
-            gt: gameTime,
+            t: globalSnapshot.t,
+            e: visibleEntities,
+            p: visibleProjectiles,
+            gt: globalSnapshot.gt
         };
 
-        if (fullSync) {
+        // Full Sync (Loot) is rare, handled here
+        if (lootSystem) {
             snapshot.l = Array.from(lootSystem.worldLoot.entries());
         }
 
