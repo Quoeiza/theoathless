@@ -357,6 +357,7 @@ export default class UISystem {
     }
 
     showHumansEscaped(msg) {
+        if (document.getElementById('game-over-screen')) return;
         const ui = document.getElementById('ui-layer');
 
         const screen = document.createElement('div');
@@ -389,7 +390,8 @@ export default class UISystem {
         
         ui.appendChild(screen);
         
-        document.getElementById('btn-return-lobby').onclick = () => location.reload();
+        const btn = screen.querySelector('#btn-return-lobby');
+        if (btn) btn.onclick = () => location.reload();
 
         ['room-code-display', 'game-timer'].forEach(id => {
             const el = document.getElementById(id);

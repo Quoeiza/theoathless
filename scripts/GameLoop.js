@@ -1124,7 +1124,7 @@ export default class GameLoop {
     }
 
     checkHumansEscaped() {
-        if (!this.state.isHost) return;
+        if (!this.state.isHost || this.state.gameOver) return;
 
         if (this.combatSystem.getHumanCount() === 0) {
             this.state.gameOver = true;
@@ -1147,7 +1147,8 @@ export default class GameLoop {
                 this.peerClient.send({ type: NetworkEvents.PORTAL_SPAWN, payload: { x: pos.x, y: pos.y } });
             }
 
-            if (this.state.gameTime <= 0) {
+            if (!this.state.gameOver && this.state.gameTime <= 0) {
+                this.state.gameOver = true;
                 this.peerClient.send({ type: NetworkEvents.HUMANS_ESCAPED, payload: { message: "Time Expired - Dungeon Collapsed" } });
                 this.uiSystem.showHumansEscaped("Time Expired");
             }
