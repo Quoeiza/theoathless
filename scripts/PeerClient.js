@@ -26,7 +26,7 @@ export default class PeerClient extends EventEmitter {
     async initHost() {
         // Try to acquire a Public Room ID (PUB0 - PUB9)
         for (let i = 0; i < 10; i++) {
-            const id = `coldcoin-PUB${i}`;
+            const id = `theoathless-PUB${i}`;
             const success = await new Promise(resolve => {
                 const p = new Peer(id, {
                     debug: this.config.peerConfig.debug,
@@ -52,7 +52,7 @@ export default class PeerClient extends EventEmitter {
         }
 
         // Fallback to random ID if all public slots are full
-        const randomId = `coldcoin-${this.generateRoomId()}`;
+        const randomId = `theoathless-${this.generateRoomId()}`;
         this.init(randomId);
     }
 
@@ -143,7 +143,7 @@ export default class PeerClient extends EventEmitter {
         for (let i = 0; i < 10; i++) {
             promises.push(new Promise(resolve => {
                 const start = Date.now();
-                const conn = this.peer.connect(`coldcoin-PUB${i}`, { reliable: true });
+                const conn = this.peer.connect(`theoathless-PUB${i}`, { reliable: true });
                 let resolved = false;
 
                 const cleanup = () => {
@@ -159,7 +159,7 @@ export default class PeerClient extends EventEmitter {
 
                 conn.on('data', (data) => {
                     if (data && data.type === 'DISCOVERY_RESPONSE') {
-                        sessions.push({ id: `coldcoin-PUB${i}`, ...data.payload, ping: Date.now() - start });
+                        sessions.push({ id: `theoathless-PUB${i}`, ...data.payload, ping: Date.now() - start });
                         cleanup();
                     }
                 });

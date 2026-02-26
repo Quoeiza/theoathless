@@ -1,10 +1,10 @@
-# **Cold Coin Game Design Document**
+# **The Oathless Game Design Document**
 
 # **Project Overview**
 
 ## **Game Concept**
 
-Cold Coin is a browser-based, real-time multiplayer, 2D top-down dungeon crawling game with a strong focus on Player vs. Player (PvP) extraction mechanics. Players enter procedurally generated dungeons, gather loot, and must successfully extract to keep their rewards. The twist is that dead players become the monsters and get to hunt the remaining players. The core loop is built around risk-reward decision-making, limited resources, and intense player encounters in short matches.
+The Oathless is a browser-based, real-time multiplayer, 2D top-down dungeon crawling game with a strong focus on Player vs. Player (PvP) extraction mechanics. Players enter procedurally generated dungeons, gather loot, and must successfully extract to keep their rewards. The twist is that dead players become the monsters and get to hunt the remaining players. The core loop is built around risk-reward decision-making, limited resources, and intense player encounters in short matches.
 
 ## **Core Influences**
 

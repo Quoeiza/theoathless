@@ -281,7 +281,7 @@ export default class GameLoop {
                 document.getElementById('room-code-display').innerText = `Room: ${displayId}`;
             } else if (hostId) {
                 document.getElementById('room-code-display').innerText = `Room: ${hostId}`;
-                this.peerClient.connect(`coldcoin-${hostId}`, { name: this.playerData.name, class: this.playerData.class, gold: this.playerData.gold });
+                this.peerClient.connect(`theoathless-${hostId}`, { name: this.playerData.name, class: this.playerData.class, gold: this.playerData.gold });
             }
         });
     }

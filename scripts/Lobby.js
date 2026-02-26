@@ -10,7 +10,7 @@ export function setupLobby(uiLayer, playerData, onHost, onJoin, onQuickJoin) {
             <source src="./assets/images/ui/bg.mp4" type="video/mp4">
         </video>
         <div class="lobby-panel">
-            <img src="./assets/images/ui/logo.png" id="game-logo" alt="Cold Coin" />
+            <img src="./assets/images/ui/logo.png" id="game-logo" alt="The Oathless" />
             
             <div class="menu-container">
                 <div id="player-stats">Gold: ${playerData.gold} | Escapes: ${playerData.escapes || 0}</div>
