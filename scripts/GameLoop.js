@@ -206,7 +206,7 @@ export default class GameLoop {
 
     _initializeGameStart() {
         document.getElementById('lobby-screen').classList.add('hidden');
-        this.audioSystem.stopMusic();
+        this.audioSystem.playMusic('dungeon');
         
         this.setupNetwork();
         this.uiSystem.setupUI();

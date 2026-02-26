@@ -14,6 +14,15 @@ export default class AudioSystem {
                 this.masterGain.gain.value = 0.4; // Default to 40% to prevent clipping
                 this.masterGain.connect(this.ctx.destination);
 
+                // Effects Gain for SFX volume control
+                this.effectsGain = this.ctx.createGain();
+                this.effectsGain.gain.value = 0.5; // Half volume for all SFX
+                this.effectsGain.connect(this.masterGain);
+
+                // Reverb for dungeon ambience
+                this.reverbNode = this.ctx.createConvolver();
+                this.reverbNode.connect(this.effectsGain);
+
                 /** @type {Object.<string, AudioBuffer>} */
                 this.buffers = {};
                 /** @type {?import('./AssetSystem.js').default} */
@@ -23,6 +32,7 @@ export default class AudioSystem {
                 this.musicSource = null;
 
                 this.generateGrimdarkAssets();
+                this._generateReverbImpulse();
             } catch (e) {
                 console.error("Failed to create AudioContext:", e);
                 this.enabled = false;
@@ -31,6 +41,27 @@ export default class AudioSystem {
             console.warn("AudioContext not supported");
             this.enabled = false;
         }
+    }
+
+    /**
+     * Generates a synthetic impulse response for the reverb node.
+     * @private
+     */
+    _generateReverbImpulse() {
+        if (!this.enabled) return;
+        const seconds = 2.5;
+        const decay = 2.0;
+        const sampleRate = this.ctx.sampleRate;
+        const len = sampleRate * seconds;
+        const buffer = this.ctx.createBuffer(2, len, sampleRate);
+        
+        for (let c = 0; c < 2; c++) {
+            const channel = buffer.getChannelData(c);
+            for (let i = 0; i < len; i++) {
+                channel[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+            }
+        }
+        this.reverbNode.buffer = buffer;
     }
 
     /**
@@ -48,7 +79,8 @@ export default class AudioSystem {
             'sword5': './assets/audio/weapon/sword5.mp3',
             'swing1': './assets/audio/weapon/swing1.mp3',
             'swing2': './assets/audio/weapon/swing2.mp3',
-            'theme': './assets/audio/music/theme.mp3'
+            'theme': './assets/audio/music/theme.mp3',
+            'dungeon': './assets/audio/music/dungeon.mp3'
         });
     }
 
@@ -126,7 +158,7 @@ export default class AudioSystem {
             osc.type = 'sine';
             osc.frequency.setValueAtTime(50, 0);
             const gain = ctx.createGain();
-            gain.gain.setValueAtTime(0.05, 0);
+            gain.gain.setValueAtTime(1, 0);
             gain.gain.exponentialRampToValueAtTime(0.01, 0.05);
             osc.connect(gain);
             gain.connect(ctx.destination);
@@ -207,7 +239,15 @@ export default class AudioSystem {
         let outputNode = this._applySpatialization(source, x, y);
         outputNode = this._applyRandomization(source, outputNode, volumeScale);
         
-        outputNode.connect(this.masterGain);
+        // Dry path to the main effects channel
+        outputNode.connect(this.effectsGain);
+
+        // Wet path (reverb send)
+        const wetGain = this.ctx.createGain();
+        wetGain.gain.value = 0.6; // Reverb mix amount
+        outputNode.connect(wetGain);
+        wetGain.connect(this.reverbNode);
+
         source.start();
     }
 
@@ -284,7 +324,7 @@ export default class AudioSystem {
         source.loop = true;
 
         const gain = this.ctx.createGain();
-        gain.gain.value = 0.3; // Background volume
+        gain.gain.value = 1; // Background volume
 
         source.connect(gain);
         gain.connect(this.masterGain);
