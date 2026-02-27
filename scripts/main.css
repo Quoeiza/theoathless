@@ -209,7 +209,6 @@ input, select {
     }
     .lobby-panel {
         width: 100%;
-        min-width: 450px;
         height: 100%;
         border-left: none;
         padding: 2vh 5vw;
