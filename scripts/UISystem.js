@@ -21,7 +21,7 @@ export default class UISystem {
                 this.game.playerData.name = name || 'Host';
                 this.game.playerData.class = cls;
                 this.game.database.savePlayer({ name: this.game.playerData.name });
-                // this.enableFullscreen();
+                this.enableFullscreen();
                 this.game.startGame(true);
             },
             (code, name, cls) => {
@@ -29,14 +29,14 @@ export default class UISystem {
                 this.game.playerData.name = name || 'Client';
                 this.game.playerData.class = cls;
                 this.game.database.savePlayer({ name: this.game.playerData.name });
-                // this.enableFullscreen();
+                this.enableFullscreen();
                 this.game.startGame(false, code);
             },
             (name, cls) => {
                 this.game.playerData.name = name || 'Traveler';
                 this.game.playerData.class = cls;
                 this.game.database.savePlayer({ name: this.game.playerData.name });
-                // this.enableFullscreen();
+                this.enableFullscreen();
                 this.game.startQuickJoin();
             }
         );
