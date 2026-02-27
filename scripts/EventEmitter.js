@@ -47,4 +47,11 @@ export default class EventEmitter {
             }
         });
     }
+
+    /**
+     * Removes all listeners for all events.
+     */
+    offAll() {
+        this.events = {};
+    }
 }

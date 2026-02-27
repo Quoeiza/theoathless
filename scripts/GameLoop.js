@@ -244,7 +244,7 @@ export default class GameLoop {
             this.uiSystem.showNotification(`Connection Error: ${err.type}`);
             // Reload on fatal errors or connection failures
             if (['network', 'browser-incompatible', 'peer-unavailable', 'socket-error', 'socket-closed'].includes(err.type)) {
-                setTimeout(() => location.reload(), 2000);
+                setTimeout(() => this.returnToLobby(), 2000);
             }
         });
     }
@@ -269,12 +269,12 @@ export default class GameLoop {
                     this.peerClient.connect(best.id, { name: this.playerData.name, class: this.playerData.class, gold: this.playerData.gold });
                 } else {
                     this.uiSystem.showNotification("No suitable sessions found.");
-                    setTimeout(() => location.reload(), 2000);
+                    setTimeout(() => this.returnToLobby(), 2000);
                 }
             } catch (e) {
                 console.error("Quick Join Error:", e);
                 this.uiSystem.showNotification("Quick Join Failed.");
-                setTimeout(() => location.reload(), 2000);
+                setTimeout(() => this.returnToLobby(), 2000);
             }
         });
     }
@@ -402,7 +402,7 @@ export default class GameLoop {
                 this.checkHumansEscaped();
             } else {
                 this.uiSystem.showNotification("Host disconnected. Returning to lobby.");
-                setTimeout(() => location.reload(), 2000);
+                setTimeout(() => this.returnToLobby(), 2000);
             }
         });
 
@@ -728,6 +728,8 @@ export default class GameLoop {
     }
 
     handleInput(intent) {
+        if (!this.state.connected) return;
+
         if (intent.type === 'TOGGLE_MENU') {
             this.uiSystem.toggleSettingsMenu();
             return;
@@ -794,6 +796,7 @@ export default class GameLoop {
     }
 
     handleMouseMove(data) {
+        if (!this.state.connected) return;
         this.uiSystem.updateTooltip(data);
     }
 
@@ -1445,5 +1448,31 @@ export default class GameLoop {
             this.state.myId,
             this.state.isHost
         );
+    }
+
+    returnToLobby() {
+        this.ticker.stop();
+        if (this.peerClient) {
+            this.peerClient.disconnect();
+        }
+
+        // Hide all game-specific UI
+        const gameUI = ['game-canvas', 'stats-bar', 'inventory-modal', 'ground-loot-modal', 'settings-modal', 'game-timer', 'kill-feed', 'mobile-controls', 'debug-overlay'];
+        gameUI.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.add('hidden');
+        });
+
+        // Show lobby UI
+        const lobbyScreen = document.getElementById('lobby-screen');
+        if (lobbyScreen) lobbyScreen.classList.remove('hidden');
+
+        // Reset any necessary game state
+        this.state.connected = false;
+        this.state.isHost = false;
+        this.state.myId = null;
+        this.state.gameOver = false;
+
+        this.audioSystem.playMusic('theme');
     }
 }

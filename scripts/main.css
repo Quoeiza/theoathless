@@ -145,7 +145,7 @@ input, select {
 .menu-container {
     display: flex;
     flex-direction: column;
-    gap: 2vh;
+    gap: 1vh;
     width: 100%;
     box-sizing: border-box;
     flex: none;

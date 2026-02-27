@@ -171,4 +171,14 @@ export default class PeerClient extends EventEmitter {
         this.isScanning = false;
         return sessions;
     }
+
+    disconnect() {
+        if (this.peer) {
+            this.peer.destroy();
+            this.peer = null;
+        }
+        this.connections = [];
+        this.isHost = false;
+        this.offAll(); // Clear all event listeners on this emitter
+    }
 }

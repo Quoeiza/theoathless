@@ -35,7 +35,8 @@ export default class UISystem {
                 this.game.playerData.class = cls;
                 this.game.database.savePlayer({ name: this.game.playerData.name });
                 this.game.startQuickJoin();
-            }
+            },
+            this // Pass the UISystem instance to the Lobby
         );
 
         // Attempt immediate fullscreen only on first session access
@@ -440,7 +441,7 @@ export default class UISystem {
         
         const quitBtn = document.getElementById('btn-quit-match');
         if (this.game.state.connected) {
-            quitBtn.onclick = () => location.reload();
+            quitBtn.onclick = () => this.game.returnToLobby();
         } else {
             quitBtn.style.display = 'none';
         }
@@ -481,7 +482,7 @@ export default class UISystem {
         ui.appendChild(screen);
         
         const btn = screen.querySelector('#btn-return-lobby');
-        if (btn) btn.onclick = () => location.reload();
+        if (btn) btn.onclick = () => this.game.returnToLobby();
 
         ['room-code-display', 'game-timer'].forEach(id => {
             const el = document.getElementById(id);
