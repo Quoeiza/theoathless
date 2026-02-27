@@ -30,7 +30,10 @@ export function setupLobby(uiLayer, playerData, onHost, onJoin, onQuickJoin) {
             </div>
         </div>
         <div id="lobby-footer">
-            <div class="version">v0.1.0 Alpha</div>
+            <div>
+                <div style="margin-bottom: 5px;">F11 for Fullscreen</div>
+                <div class="version">v0.1.0 Alpha</div>
+            </div>
             <div class="socials">
                 <span></span>
                 <span></span>
@@ -72,6 +75,8 @@ export function setupLobby(uiLayer, playerData, onHost, onJoin, onQuickJoin) {
     };
 
     document.getElementById('btn-quit-game').onclick = () => {
+        window.open('', '_self', '');
         window.close();
+        setTimeout(() => window.location.href = "about:blank", 100);
     };
 }

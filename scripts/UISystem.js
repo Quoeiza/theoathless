@@ -21,7 +21,6 @@ export default class UISystem {
                 this.game.playerData.name = name || 'Host';
                 this.game.playerData.class = cls;
                 this.game.database.savePlayer({ name: this.game.playerData.name });
-                this.enableFullscreen();
                 this.game.startGame(true);
             },
             (code, name, cls) => {
@@ -29,26 +28,27 @@ export default class UISystem {
                 this.game.playerData.name = name || 'Client';
                 this.game.playerData.class = cls;
                 this.game.database.savePlayer({ name: this.game.playerData.name });
-                this.enableFullscreen();
                 this.game.startGame(false, code);
             },
             (name, cls) => {
                 this.game.playerData.name = name || 'Traveler';
                 this.game.playerData.class = cls;
                 this.game.database.savePlayer({ name: this.game.playerData.name });
-                this.enableFullscreen();
                 this.game.startQuickJoin();
             }
         );
 
-        // Attempt immediate fullscreen
-        this.enableFullscreen();
-        // Ensure fullscreen on first interaction (browsers often block immediate fullscreen)
-        const fsHandler = () => {
+        // Attempt immediate fullscreen only on first session access
+        if (!sessionStorage.getItem('theoathless_fs')) {
             this.enableFullscreen();
-        };
-        document.addEventListener('click', fsHandler, { once: true });
-        document.addEventListener('touchstart', fsHandler, { once: true });
+            // Ensure fullscreen on first interaction (browsers often block immediate fullscreen)
+            const fsHandler = () => {
+                this.enableFullscreen();
+                sessionStorage.setItem('theoathless_fs', 'true');
+            };
+            document.addEventListener('click', fsHandler, { once: true });
+            document.addEventListener('touchstart', fsHandler, { once: true });
+        }
     }
 
     setupUI() {
@@ -138,7 +138,11 @@ export default class UISystem {
             const btnReturn = document.getElementById('btn-return-lobby');
             if (btnReturn) btnReturn.onclick = () => location.reload();
 
-            document.getElementById('btn-quit').onclick = () => window.close();
+            document.getElementById('btn-quit').onclick = () => {
+                window.open('', '_self', '');
+                window.close();
+                setTimeout(() => window.location.href = "about:blank", 100);
+            };
         }
 
         this.createInteractionUI();
