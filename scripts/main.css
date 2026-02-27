@@ -14,6 +14,10 @@
     --gold: #ffd700;
 }
 
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
 /* GENERAL BODY & FONT STYLES */
 body, html {
     margin: 0;
@@ -72,6 +76,8 @@ button {
     box-shadow: 0 4px 6px rgba(0,0,0,0.5);
     text-shadow: 1px 1px 0 #000;
     touch-action: manipulation; /* From original main.css */
+    max-width: 100%;
+    margin: 0;
 }
 
 button:hover {
@@ -90,6 +96,8 @@ input, select {
     padding: 10px;
     font-family: 'Germania One', cursive;
     border-radius: 2px;
+    max-width: 100%;
+    margin: 0;
 }
 
 /* LOBBY & GAME OVER SCREENS */
@@ -209,7 +217,6 @@ input, select {
     }
     .lobby-panel {
         width: 100%;
-        min-width: 450px;
         height: 100%;
         border-left: none;
         padding: 2vh 5vw;

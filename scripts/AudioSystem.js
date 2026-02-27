@@ -30,6 +30,8 @@ export default class AudioSystem {
                 this.listenerPos = null;
                 /** @type {?AudioBufferSourceNode} */
                 this.musicSource = null;
+                this.musicGainNode = null;
+                this.musicVolume = 0.5;
 
                 this.generateGrimdarkAssets();
                 this._generateReverbImpulse();
@@ -40,6 +42,16 @@ export default class AudioSystem {
         } else {
             console.warn("AudioContext not supported");
             this.enabled = false;
+        }
+    }
+
+    updateSettings(settings) {
+        if (!this.enabled) return;
+        if (this.masterGain) this.masterGain.gain.value = settings.masterVolume;
+        if (this.effectsGain) this.effectsGain.gain.value = settings.sfxVolume;
+        this.musicVolume = settings.musicVolume;
+        if (this.musicGainNode) {
+            this.musicGainNode.gain.value = this.musicVolume;
         }
     }
 
@@ -324,7 +336,8 @@ export default class AudioSystem {
         source.loop = true;
 
         const gain = this.ctx.createGain();
-        gain.gain.value = 1; // Background volume
+        gain.gain.value = this.musicVolume; // Background volume
+        this.musicGainNode = gain;
 
         source.connect(gain);
         gain.connect(this.masterGain);

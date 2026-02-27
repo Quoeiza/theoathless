@@ -81,7 +81,14 @@ export default class RenderSystem {
         this.renderPool = []; // Pool for render items
         this.renderPoolIndex = 0;
         this.meshVisited = new Set(); // Reuse Set for meshing to reduce GC
+        this.cachedShadowCasters = null;
+        this.shadowCasterRevision = -1;
         this.explored = new Set(); // Track explored tiles for Auto-Explore
+        this.settings = { shadows: true, particles: true, dynamicLights: true };
+    }
+
+    applySettings(settings) {
+        this.settings = settings;
     }
 
     setAssetLoader(loader) {
@@ -366,6 +373,7 @@ export default class RenderSystem {
     }
 
     spawnParticle(x, y, dirX, dirY, color = '#800', speedOverride = null, sizeOverride = null) {
+        if (!this.settings.particles) return;
         const p = this.particlePool.pop() || { x:0, y:0, vx:0, vy:0, life:0, maxLife:0 };
         p.x = x + (Math.random() - 0.5) * 0.2;
         p.y = y + (Math.random() - 0.5) * 0.2;
@@ -1064,7 +1072,64 @@ export default class RenderSystem {
         return seg;
     }
 
+    rebuildShadowCasters(grid) {
+        this.cachedShadowCasters = [];
+        const w = grid[0].length;
+        const h = grid.length;
+
+        // Casters are walls that are NOT walkable (colliding).
+        const isCaster = (x, y) => {
+            return this.tileMapSystem.getTileVal(grid, x, y) === 1 && 
+                   (!this.gridSystem || !this.gridSystem.isWalkable(x, y));
+        };
+
+        this.meshVisited.clear();
+
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                const key = (y << 16) | x;
+                if (this.meshVisited.has(key)) continue;
+
+                if (isCaster(x, y)) {
+                    let width = 1;
+                    while (x + width < w && isCaster(x + width, y) && !this.meshVisited.has((y << 16) | (x + width))) {
+                        width++;
+                    }
+                    
+                    let height = 1;
+                    let canExtend = true;
+                    while (y + height < h && canExtend) {
+                        for (let k = 0; k < width; k++) {
+                            const checkX = x + k;
+                            const checkY = y + height;
+                            const checkKey = (checkY << 16) | checkX;
+                            if (!isCaster(checkX, checkY) || this.meshVisited.has(checkKey)) {
+                                canExtend = false;
+                                break;
+                            }
+                        }
+                        if (canExtend) height++;
+                    }
+
+                    this.cachedShadowCasters.push({ x, y, w: width, h: height });
+
+                    for (let iy = 0; iy < height; iy++) {
+                        for (let ix = 0; ix < width; ix++) {
+                            this.meshVisited.add(((y + iy) << 16) | (x + ix));
+                        }
+                    }
+                }
+            }
+        }
+        this.shadowCasterRevision = this.gridSystem ? this.gridSystem.revision : -1;
+    }
+
     drawShadowLayer(grid, playerVisual, entities) {
+        if (!this.settings.shadows) {
+            this.shadowCtx.clearRect(0, 0, this.shadowCanvas.width, this.shadowCanvas.height);
+            return;
+        }
+
         if (!playerVisual) return;
 
         this.segmentPoolIndex = 0; // Reset pool pointer
@@ -1109,55 +1174,18 @@ export default class RenderSystem {
         const startX = Math.max(0, Math.floor(startCol));
         const endX = Math.min(grid[0].length - 1, Math.floor(endCol));
 
-        // --- GREEDY MESHING ALGORITHM ---
-        const mesh = (targetArray, isTypeFunc) => {
-            this.meshVisited.clear();
-            for (let y = startY; y <= endY; y++) {
-                for (let x = startX; x <= endX; x++) {
-                    const key = (y << 16) | x;
-                    if (this.meshVisited.has(key)) continue;
+        // Check if we need to rebuild the static shadow casters
+        if (this.gridSystem && this.gridSystem.revision !== this.shadowCasterRevision) {
+            this.rebuildShadowCasters(grid);
+        }
 
-                    if (isTypeFunc(x, y)) {
-                        let width = 1;
-                        while (x + width <= endX && isTypeFunc(x + width, y) && !this.meshVisited.has((y << 16) | (x + width))) {
-                            width++;
-                        }
-                        let height = 1;
-                        let canExtend = true;
-                        while (y + height <= endY && canExtend) {
-                            for (let k = 0; k < width; k++) {
-                                const checkX = x + k;
-                                const checkY = y + height;
-                                const checkKey = (checkY << 16) | checkX;
-                                if (!isTypeFunc(checkX, checkY) || this.meshVisited.has(checkKey)) {
-                                    canExtend = false;
-                                    break;
-                                }
-                            }
-                            if (canExtend) height++;
-                        }
-                        const seg = this.getShadowSegment(x, y);
-                        seg.w = width;
-                        seg.h = height;
-                        targetArray.push(seg);
-                        for (let iy = 0; iy < height; iy++) {
-                            for (let ix = 0; ix < width; ix++) {
-                                this.meshVisited.add(((y + iy) << 16) | (x + ix));
-                            }
-                        }
-                    }
-                }
-            }
-        };
-
-        // Casters are walls that are NOT walkable (colliding).
-        const isCaster = (x, y) => {
-            return this.tileMapSystem.getTileVal(grid, x, y) === 1 && 
-                   (!this.gridSystem || !this.gridSystem.isWalkable(x, y));
-        };
-        
-        this.shadowCasters.length = 0;
-        mesh(this.shadowCasters, isCaster);
+        // Filter cached casters to only those near the player (Optimization)
+        // We use the cached list instead of scanning the grid every frame.
+        this.shadowCasters = this.cachedShadowCasters.filter(c => {
+            // Simple AABB overlap check with the light radius box
+            return (c.x < endCol && c.x + c.w > startCol &&
+                    c.y < endRow && c.y + c.h > startRow);
+        });
 
         sCtx.save();
         
@@ -1337,6 +1365,11 @@ export default class RenderSystem {
     }
 
     drawAmbientLayer(playerVisual) {
+        if (!this.settings.dynamicLights) {
+            this.lightCtx.clearRect(0, 0, this.lightCanvas.width, this.lightCanvas.height);
+            return;
+        }
+
         const ctx = this.lightCtx;
         const w = this.lightCanvas.width;
         const h = this.lightCanvas.height;
@@ -1399,6 +1432,8 @@ export default class RenderSystem {
     }
 
     drawTorchOverlay(playerVisual) {
+        if (!this.settings.dynamicLights) return;
+
         if (!playerVisual) return;
         const ts = this.tileSize;
         const px = playerVisual.x;

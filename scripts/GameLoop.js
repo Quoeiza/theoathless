@@ -69,6 +69,17 @@ export default class GameLoop {
         this.database = new Database();
         this.playerData = { name: 'Player', gold: 0, class: 'Fighter' };
         
+        // Load Settings
+        const savedSettings = localStorage.getItem('theoathless_settings');
+        this.settings = savedSettings ? JSON.parse(savedSettings) : {
+            masterVolume: 0.4,
+            musicVolume: 0.5,
+            sfxVolume: 0.5,
+            shadows: true,
+            particles: true,
+            dynamicLights: true
+        };
+        
         // Debug Stats
         this.debugStats = {
             bytesIn: 0,
@@ -175,6 +186,10 @@ export default class GameLoop {
         await this.audioSystem.setAssetLoader(this.assetSystem);
         this.uiSystem = new UISystem(this);
         this.aiSystem = new AISystem(this.gridSystem, this.combatSystem, this.lootSystem);
+        
+        // Apply initial settings
+        this.renderSystem.applySettings(this.settings);
+        this.audioSystem.updateSettings(this.settings);
     }
 
     /**
@@ -183,6 +198,7 @@ export default class GameLoop {
      */
     _setupLobby() {
         this.uiSystem.setupLobby();
+        this.uiSystem.setupLobbySettings();
 
         this.audioSystem.playMusic('theme');
         this.audioSystem.resume();
@@ -202,6 +218,13 @@ export default class GameLoop {
         if (hostId) {
             document.getElementById('room-code-input').value = hostId;
         }
+    }
+
+    updateSettings(newSettings) {
+        this.settings = { ...this.settings, ...newSettings };
+        localStorage.setItem('theoathless_settings', JSON.stringify(this.settings));
+        this.renderSystem.applySettings(this.settings);
+        this.audioSystem.updateSettings(this.settings);
     }
 
     _initializeGameStart() {

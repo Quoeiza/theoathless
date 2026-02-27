@@ -21,7 +21,6 @@ export default class UISystem {
                 this.game.playerData.name = name || 'Host';
                 this.game.playerData.class = cls;
                 this.game.database.savePlayer({ name: this.game.playerData.name });
-                // this.enableFullscreen();
                 this.game.startGame(true);
             },
             (code, name, cls) => {
@@ -29,17 +28,32 @@ export default class UISystem {
                 this.game.playerData.name = name || 'Client';
                 this.game.playerData.class = cls;
                 this.game.database.savePlayer({ name: this.game.playerData.name });
-                // this.enableFullscreen();
                 this.game.startGame(false, code);
             },
             (name, cls) => {
                 this.game.playerData.name = name || 'Traveler';
                 this.game.playerData.class = cls;
                 this.game.database.savePlayer({ name: this.game.playerData.name });
-                // this.enableFullscreen();
                 this.game.startQuickJoin();
             }
         );
+
+        // Attempt immediate fullscreen only on first session access
+        if (!sessionStorage.getItem('theoathless_fs')) {
+            this.enableFullscreen();
+            // Ensure fullscreen on first interaction (browsers often block immediate fullscreen)
+            const fsHandler = () => {
+                this.enableFullscreen();
+                sessionStorage.setItem('theoathless_fs', 'true');
+            };
+            document.addEventListener('click', fsHandler, { once: true });
+            document.addEventListener('touchstart', fsHandler, { once: true });
+        }
+    }
+
+    setupLobbySettings() {
+        const btn = document.getElementById('btn-lobby-settings');
+        if (btn) btn.onclick = () => this.toggleSettingsMenu();
     }
 
     setupUI() {
@@ -121,11 +135,14 @@ export default class UISystem {
 
         this.setupCanvasDrop();
 
-        const settingsModal = document.getElementById('settings-modal');
-        if (settingsModal) {
-            document.getElementById('btn-resume').onclick = () => this.toggleSettingsMenu();
-            document.getElementById('btn-settings').onclick = () => alert("Settings coming soon!");
-            document.getElementById('btn-quit').onclick = () => location.reload();
+        // Ensure settings modal exists for dynamic rendering
+        let settingsModal = document.getElementById('settings-modal');
+        if (!settingsModal) {
+            settingsModal = document.createElement('div');
+            settingsModal.id = 'settings-modal';
+            settingsModal.className = 'hidden';
+            const uiLayer = document.getElementById('ui-layer') || document.body;
+            uiLayer.appendChild(settingsModal);
         }
 
         this.createInteractionUI();
@@ -353,7 +370,80 @@ export default class UISystem {
 
     toggleSettingsMenu() {
         const modal = document.getElementById('settings-modal');
-        if (modal) modal.classList.toggle('hidden');
+        if (!modal) return;
+        
+        if (modal.classList.contains('hidden')) {
+            // Open and Render
+            modal.classList.remove('hidden');
+            this.renderSettingsContent(modal);
+        } else {
+            modal.classList.add('hidden');
+        }
+    }
+
+    renderSettingsContent(modal) {
+        const s = this.game.settings;
+        
+        modal.innerHTML = `
+            <div class="modal-header">
+                <h3>Settings</h3>
+                <button id="btn-settings-close" style="padding:2px 8px;">X</button>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px; text-align:left; padding-top:10px;">
+                <div>
+                    <label style="display:block; margin-bottom:4px;">Master Volume</label>
+                    <input type="range" min="0" max="1" step="0.1" value="${s.masterVolume}" id="set-vol-master" style="width:100%; display:block;">
+                </div>
+                <div>
+                    <label style="display:block; margin-bottom:4px;">Music Volume</label>
+                    <input type="range" min="0" max="1" step="0.1" value="${s.musicVolume}" id="set-vol-music" style="width:100%; display:block;">
+                </div>
+                <div>
+                    <label style="display:block; margin-bottom:4px;">SFX Volume</label>
+                    <input type="range" min="0" max="1" step="0.1" value="${s.sfxVolume}" id="set-vol-sfx" style="width:100%; display:block;">
+                </div>
+                <hr style="width:100%; border:0; border-top:1px solid #555;">
+                <label><input type="checkbox" id="set-lights" ${s.dynamicLights ? 'checked' : ''}> Dynamic Lighting</label>
+                <label><input type="checkbox" id="set-shadows" ${s.shadows ? 'checked' : ''} ${!s.dynamicLights ? 'disabled' : ''}> Enable Shadows</label>
+                <label><input type="checkbox" id="set-particles" ${s.particles ? 'checked' : ''}> Enable Particles</label>
+                <hr style="width:100%; border:0; border-top:1px solid #555;">
+                <button id="btn-quit-match">Quit to Lobby</button>
+            </div>
+        `;
+
+        // Bind Events
+        const update = () => {
+            const lightsCb = document.getElementById('set-lights');
+            const shadowsCb = document.getElementById('set-shadows');
+            
+            // Dependency Logic
+            if (!lightsCb.checked) {
+                shadowsCb.checked = false;
+                shadowsCb.disabled = true;
+            } else {
+                shadowsCb.disabled = false;
+            }
+
+            this.game.updateSettings({
+                masterVolume: parseFloat(document.getElementById('set-vol-master').value),
+                musicVolume: parseFloat(document.getElementById('set-vol-music').value),
+                sfxVolume: parseFloat(document.getElementById('set-vol-sfx').value),
+                shadows: shadowsCb.checked,
+                particles: document.getElementById('set-particles').checked,
+                dynamicLights: lightsCb.checked
+            });
+        };
+
+        modal.querySelectorAll('input').forEach(el => el.onchange = update);
+
+        document.getElementById('btn-settings-close').onclick = () => modal.classList.add('hidden');
+        
+        const quitBtn = document.getElementById('btn-quit-match');
+        if (this.game.state.connected) {
+            quitBtn.onclick = () => location.reload();
+        } else {
+            quitBtn.style.display = 'none';
+        }
     }
 
     showHumansEscaped(msg) {
@@ -407,8 +497,12 @@ export default class UISystem {
     }
 
     enableFullscreen() {
-        if (document.documentElement.requestFullscreen) {
-            document.documentElement.requestFullscreen().catch(e => console.log("Fullscreen request failed:", e));
+        if (window.location.host === '127.0.0.1:5500') return;
+
+        const el = document.documentElement;
+        const rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+        if (rfs) {
+            rfs.call(el).catch(e => console.log("Fullscreen request failed:", e));
         }
     }
 }

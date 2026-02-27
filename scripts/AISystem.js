@@ -15,28 +15,34 @@ export default class AISystem {
             const pos = this.gridSystem.entities.get(id);
             if (!pos) continue;
 
-            // Optimization: AI Sleep
-            // If the monster is too far from any player, skip logic.
-            const nearestPlayerId = this.findNearestPlayerId(pos.x, pos.y);
-            if (!nearestPlayerId) continue;
-            
-            const nearestPlayer = this.gridSystem.entities.get(nearestPlayerId);
-            const distToPlayer = Math.abs(nearestPlayer.x - pos.x) + Math.abs(nearestPlayer.y - pos.y);
-            if (distToPlayer > 25) continue; // Sleep radius (approx 1.5 screens)
-
             let targetPos = null;
             let shouldAttack = false;
+            let nearestPlayer = null;
+            let nearestPlayerId = null;
 
-            if (nearestPlayer) {
-                // Check Line of Sight
-                const hasLOS = this.gridSystem.hasLineOfSight(pos.x, pos.y, nearestPlayer.x, nearestPlayer.y);
+            // Throttling: Only scan for targets periodically
+            if (currentTick >= (stats.nextScanTick || 0)) {
+                stats.nextScanTick = currentTick + 5; // Scan every 10 ticks (0.5s)
                 
-                if (hasLOS) {
-                    stats.aiState = 'CHASING';
-                    stats.targetLastPos = { x: nearestPlayer.x, y: nearestPlayer.y };
-                    stats.memoryTimer = 5000; // 5 Seconds Memory
-                    targetPos = nearestPlayer;
-                    shouldAttack = true;
+                // Optimization: AI Sleep
+                // If the monster is too far from any player, skip logic.
+                nearestPlayerId = this.findNearestPlayerId(pos.x, pos.y);
+                if (nearestPlayerId) {
+                    nearestPlayer = this.gridSystem.entities.get(nearestPlayerId);
+                    const distToPlayer = Math.abs(nearestPlayer.x - pos.x) + Math.abs(nearestPlayer.y - pos.y);
+                    
+                    if (distToPlayer <= 25) { // Sleep radius (approx 1.5 screens)
+                        // Check Line of Sight
+                        const hasLOS = this.gridSystem.hasLineOfSight(pos.x, pos.y, nearestPlayer.x, nearestPlayer.y);
+                        
+                        if (hasLOS) {
+                            stats.aiState = 'CHASING';
+                            stats.targetLastPos = { x: nearestPlayer.x, y: nearestPlayer.y };
+                            stats.memoryTimer = 5000; // 5 Seconds Memory
+                            targetPos = nearestPlayer;
+                            shouldAttack = true;
+                        }
+                    }
                 }
             }
 
@@ -63,6 +69,11 @@ export default class AISystem {
                 }
             }
 
+            // If we are chasing, we use the cached target position
+            if (stats.aiState === 'CHASING' && stats.targetLastPos && !targetPos) {
+                targetPos = stats.targetLastPos;
+            }
+
             if (targetPos) {
                 const dx = targetPos.x - pos.x;
                 const dy = targetPos.y - pos.y;
@@ -71,8 +82,8 @@ export default class AISystem {
                 if (shouldAttack && dist <= 1) {
                     // Update facing to look at target
                     pos.facing = { x: Math.sign(dx), y: Math.sign(dy) };
-                    // Attack (Only if we have actual target/LOS)
-                    if (attackCallback) attackCallback(id, nearestPlayerId);
+                    // Attack (Only if we have actual target/LOS) - nearestPlayerId might be null if we didn't scan this tick, but that's rare in melee range
+                    if (attackCallback && nearestPlayerId) attackCallback(id, nearestPlayerId);
                     const cooldownMs = (stats.attackSpeed || 4) * 250;
                     stats.nextActionTick = currentTick + Math.ceil(cooldownMs / timePerTick);
                 } else {
