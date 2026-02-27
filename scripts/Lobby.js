@@ -31,7 +31,6 @@ export function setupLobby(uiLayer, playerData, onHost, onJoin, onQuickJoin) {
         </div>
         <div id="lobby-footer">
             <div>
-                <div style="margin-bottom: 5px;">F11 for Fullscreen</div>
                 <div class="version">v0.1.0 Alpha</div>
             </div>
             <div class="socials">
