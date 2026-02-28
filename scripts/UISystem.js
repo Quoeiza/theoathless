@@ -362,8 +362,15 @@ export default class UISystem {
     }
 
     toggleSettingsMenu() {
-        const modal = document.getElementById('settings-modal');
-        if (!modal) return;
+        let modal = document.getElementById('settings-modal');
+        
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'settings-modal';
+            modal.className = 'hidden';
+            const uiLayer = document.getElementById('ui-layer') || document.body;
+            uiLayer.appendChild(modal);
+        }
         
         if (modal.classList.contains('hidden')) {
             // Open and Render

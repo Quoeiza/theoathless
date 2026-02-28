@@ -139,7 +139,9 @@ export class Lobby {
         };
 
         document.getElementById('btn-lobby-settings').onclick = () => {
-            this.uiSystem.toggleSettingsMenu();
+            if (this.uiSystem && typeof this.uiSystem.toggleSettingsMenu === 'function') {
+                this.uiSystem.toggleSettingsMenu();
+            }
         };
 
         document.getElementById('btn-logout').onclick = () => {

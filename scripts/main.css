@@ -357,7 +357,7 @@ input, select {
 }
 
 /* MODALS (Inventory, Loot, Settings) */
-#inventory-modal, #ground-loot-modal, #settings-modal {
+#inventory-modal, #ground-loot-modal, #settings-modal, #pause-menu {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -377,12 +377,12 @@ input, select {
     gap: 10px;
 }
 
-#settings-modal {
+#settings-modal, #pause-menu {
     width: 250px; /* Keep fixed width for this one */
     text-align: center;
 }
 
-#settings-modal h2 {
+#settings-modal h2, #pause-menu h2 {
     margin-top: 0;
     color: var(--gold); /* Use theme color */
 }

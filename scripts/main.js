@@ -8,6 +8,17 @@ class App {
         this.database = new Database();
         this.playerData = { name: 'Player', gold: 0, class: 'Fighter' };
         
+        // Load Settings
+        const savedSettings = localStorage.getItem('theoathless_settings');
+        this.settings = savedSettings ? JSON.parse(savedSettings) : {
+            masterVolume: 0.4,
+            musicVolume: 0.5,
+            sfxVolume: 0.5,
+            shadows: true,
+            particles: true,
+            dynamicLights: true
+        };
+        
         // Mock systems for UI before game starts
         this.lootSystem = {
             getInventory: () => [],
@@ -121,6 +132,41 @@ class App {
     handleUnequipItem(slot) { if(this.client) this.client.sendInput({ type: 'UNEQUIP', slot }); }
     handleDropItem(itemId, source) { if(this.client) this.client.sendInput({ type: 'DROP', itemId, source }); }
     handleInteractWithLoot(loot) { if(this.client) this.client.sendInput({ type: 'INTERACT_LOOT', lootId: loot.id }); }
+
+    updateSettings(newSettings) {
+        this.settings = { ...this.settings, ...newSettings };
+        localStorage.setItem('theoathless_settings', JSON.stringify(this.settings));
+        if (this.client && this.client.renderSystem) {
+            this.client.renderSystem.applySettings(this.settings);
+        }
+        if (this.client && this.client.audioSystem) {
+            this.client.audioSystem.updateSettings(this.settings);
+        }
+    }
+
+    returnToLobby() {
+        console.log("Returning to lobby...");
+        if (this.client) {
+            if (this.client.ws) this.client.ws.close();
+            this.client = null;
+        }
+
+        // Hide Game UI Elements
+        const gameUI = ['inventory-modal', 'ground-loot-modal', 'settings-modal', 'pause-menu', 'game-over-screen', 'stats-bar', 'mobile-controls', 'game-timer', 'room-code-display', 'loot-notification'];
+        gameUI.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.add('hidden');
+        });
+
+        // Show Lobby
+        document.getElementById('lobby-screen').classList.remove('hidden');
+        
+        // Reset App State
+        this.state = { myId: null };
+        
+        // Play Theme Music
+        // Note: AudioSystem is currently on Client, so we might lose music when client is destroyed.
+    }
 }
 
 const app = new App();
