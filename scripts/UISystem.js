@@ -18,19 +18,6 @@ export default class UISystem {
             uiLayer,
             this.game.playerData,
             (name, cls) => {
-                this.game.playerData.name = name || 'Host';
-                this.game.playerData.class = cls;
-                this.game.database.savePlayer({ name: this.game.playerData.name });
-                this.game.startGame(true);
-            },
-            (code, name, cls) => {
-                if (!code) return alert("Enter a room code");
-                this.game.playerData.name = name || 'Client';
-                this.game.playerData.class = cls;
-                this.game.database.savePlayer({ name: this.game.playerData.name });
-                this.game.startGame(false, code);
-            },
-            (name, cls) => {
                 this.game.playerData.name = name || 'Traveler';
                 this.game.playerData.class = cls;
                 this.game.database.savePlayer({ name: this.game.playerData.name });
@@ -252,6 +239,11 @@ export default class UISystem {
     updateGoldUI() {
         const el = document.getElementById('gold-val');
         if (el) el.innerText = this.game.playerData.gold;
+    }
+
+    updateLobbyStatus(message) {
+        const el = document.getElementById('lobby-status');
+        if (el) el.innerText = message;
     }
 
     updateTooltip(data) {

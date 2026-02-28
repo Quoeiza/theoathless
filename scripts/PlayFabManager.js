@@ -5,10 +5,12 @@ class PlayFabManager extends EventEmitter {
     constructor() {
         super();
         this.titleId = "123FF2"; 
-        if (this.titleId === "123FF2") {
-            console.warn("PlayFab Title ID is not set. Please replace '123FF2' in PlayFabManager.js with your actual Title ID.");
+        if (typeof PlayFab !== 'undefined') {
+            PlayFab.settings.titleId = this.titleId;
+        } else {
+            console.error("PlayFab SDK not loaded. Check internet connection or adblocker.");
         }
-        PlayFab.settings.titleId = this.titleId;
+        this.entityKey = null;
     }
 
     _callPlayFabApi(apiCall, request, callback) {
@@ -27,12 +29,14 @@ class PlayFabManager extends EventEmitter {
             Password: password,
             TitleId: this.titleId,
             InfoRequestParameters: {
-                GetUserAccountInfo: true
+                GetUserAccountInfo: true,
+                GetEntityToken: true
             }
         };
 
         this._callPlayFabApi(PlayFabClientSDK.LoginWithEmailAddress, loginRequest, (result, error) => {
             if (result) {
+                this.entityKey = result.data.EntityToken.Entity;
                 this.emit('loginSuccess', result.data);
             } else {
                 this.emit('loginFailure', this.handleError(error));
@@ -71,6 +75,39 @@ class PlayFabManager extends EventEmitter {
                 this.emit('forgotPasswordFailure', this.handleError(error));
             }
         });
+    }
+
+    startMatchmaking(queueName, callback) {
+        if (!this.entityKey) {
+            return callback(null, { errorMessage: "Not logged in or missing Entity Key." });
+        }
+
+        const request = {
+            Creator: {
+                Entity: this.entityKey
+            },
+            GiveUpAfterSeconds: 120,
+            QueueName: queueName
+        };
+
+        this._callPlayFabApi(PlayFabMultiplayerSDK.CreateMatchmakingTicket, request, callback);
+    }
+
+    pollMatchmakingTicket(ticketId, queueName, callback) {
+        if (!this.entityKey) return;
+
+        const request = {
+            TicketId: ticketId,
+            QueueName: queueName,
+            EscapeObject: true
+        };
+
+        this._callPlayFabApi(PlayFabMultiplayerSDK.GetMatchmakingTicket, request, callback);
+    }
+
+    getMatch(matchId, queueName, callback) {
+        const request = { MatchId: matchId, QueueName: queueName, EscapeObject: true };
+        this._callPlayFabApi(PlayFabMultiplayerSDK.GetMatch, request, callback);
     }
 
     handleError(error) {

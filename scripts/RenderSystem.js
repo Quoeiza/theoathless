@@ -1607,6 +1607,8 @@ export default class RenderSystem {
     }
 
     render(grid, entities, loot, projectiles, interaction, localPlayerId, isHost) {
+        if (!entities) return;
+
         // Check if we need to update static cache
         if (this.gridSystem && this.gridSystem.revision !== this.lastGridRevision) {
             this.updateStaticCache(grid);

@@ -170,6 +170,15 @@ input, select {
     box-shadow: 0 1vh 2vh rgba(0,0,0,0.6);
 }
 
+.lobby-status {
+    color: var(--gold);
+    text-align: center;
+    min-height: 24px;
+    font-size: 2.5vh;
+    text-shadow: 1px 1px 0 #000;
+    margin: 1vh 0;
+}
+
 #room-code-input {
     font-size: 7vh;
     padding: 0vh;
@@ -580,6 +589,15 @@ input, select {
     box-shadow: 0 10px 30px rgba(0,0,0,0.7);
     width: 100%;
     max-width: 400px;
+}
+
+.login-form.embedded {
+    background: transparent;
+    box-shadow: none;
+    border: none;
+    padding: 0;
+    width: 100%;
+    max-width: 100%;
 }
 
 .login-form h2 {

@@ -1,12 +1,10 @@
 import { playFabManager } from './PlayFabManager.js';
 
 export class Lobby {
-    constructor(uiLayer, playerData, onHost, onJoin, onQuickJoin, uiSystem) {
+    constructor(uiLayer, playerData, onEnterDungeon, uiSystem) {
         this.uiLayer = uiLayer;
         this.playerData = playerData;
-        this.onHost = onHost;
-        this.onJoin = onJoin;
-        this.onQuickJoin = onQuickJoin;
+        this.onEnterDungeon = onEnterDungeon;
         this.uiSystem = uiSystem;
         this.loginContainer = document.getElementById('login-container');
         this.lobbyContainer = document.getElementById('lobby-container');
@@ -14,11 +12,12 @@ export class Lobby {
 
         this.setupEventListeners();
         
-        // This is a simple check. A more robust solution might use session storage.
+        this.initializeLobbyShell();
+
         if (this.loggedIn) {
-            this.createLobbyUI();
+            this.renderMainMenu();
         } else {
-            this.createLoginUI();
+            this.renderLoginForm();
         }
     }
 
@@ -31,26 +30,55 @@ export class Lobby {
         playFabManager.on('forgotPasswordFailure', this.onForgotPasswordFailure.bind(this));
     }
 
-    createLoginUI() {
-        this.lobbyContainer.classList.add('hidden');
-        this.loginContainer.innerHTML = `
-            <div class="login-form">
-                <h2>Login</h2>
+    initializeLobbyShell() {
+        // Ensure the old overlay login container is hidden
+        if (this.loginContainer) this.loginContainer.classList.add('hidden');
+        this.lobbyContainer.classList.remove('hidden');
+
+        this.lobbyContainer.innerHTML = `
+            <div id="lobby-screen">
+                <video autoplay loop muted playsinline id="lobby-bg-video">
+                    <source src="./assets/images/ui/bg.mp4" type="video/mp4">
+                </video>
+                <div class="lobby-panel">
+                    <img src="./assets/images/ui/logo.png" id="game-logo" alt="The Oathless" />
+                    <div class="menu-container" id="lobby-menu-area">
+                        <!-- Dynamic Content -->
+                    </div>
+                </div>
+                <div id="lobby-footer">
+                    <div class="version">v0.1.0 Alpha</div>
+                </div>
+            </div>
+        `;
+
+        const bgVideo = document.getElementById('lobby-bg-video');
+        if (bgVideo) {
+            bgVideo.muted = true;
+            bgVideo.play().catch(e => console.warn("Lobby video autoplay failed:", e));
+        }
+    }
+
+    renderLoginForm() {
+        const menuArea = document.getElementById('lobby-menu-area');
+        if (!menuArea) return;
+
+        menuArea.innerHTML = `
+            <div class="login-form embedded">
+                <h2 style="margin-top:0;">Login</h2>
                 <div id="login-error"></div>
                 <div class="form-group">
-                    <label for="login-email">Email</label>
-                    <input type="email" id="login-email" placeholder="Enter your email" required>
+                    <input type="email" id="login-email" placeholder="Email" required>
                 </div>
                 <div class="form-group">
-                    <label for="login-password">Password</label>
-                    <input type="password" id="login-password" placeholder="Enter your password" required>
+                    <input type="password" id="login-password" placeholder="Password" required>
                 </div>
                 <div class="login-buttons">
                     <button id="btn-login">Login</button>
-                    <button id="btn-create-account">Create Account</button>
+                    <button id="btn-create-account">Register</button>
                 </div>
                 <div class="forgot-password">
-                    <a id="btn-forgot-password">Forgot your password?</a>
+                    <a id="btn-forgot-password">Forgot Password?</a>
                 </div>
             </div>
         `;
@@ -85,73 +113,29 @@ export class Lobby {
         };
     }
 
-    createLobbyUI() {
-        this.lobbyContainer.innerHTML = `
-            <div id="lobby-screen">
-                <video autoplay loop muted playsinline id="lobby-bg-video">
-                    <source src="./assets/images/ui/bg.mp4" type="video/mp4">
-                </video>
-                <div class="lobby-panel">
-                    <img src="./assets/images/ui/logo.png" id="game-logo" alt="The Oathless" />
-                    <div class="menu-container">
-                        <div id="player-stats">Gold: ${this.playerData.gold} | Escapes: ${this.playerData.escapes || 0}</div>
-                        <input type="text" id="player-name" placeholder="Enter Name" value="${this.playerData.name}" />
-                        <select id="class-select">
-                            <option value="Fighter">Fighter (Heal)</option>
-                            <option value="Rogue">Rogue (Stealth)</option>
-                            <option value="Barbarian">Barbarian (Rage)</option>
-                        </select>
-                        <button id="btn-quick-join">Quick Join</button>
-                        <button id="btn-host">Host Game</button>
-                        <div class="join-row">
-                            <input type="text" id="room-code-input" placeholder="****" />
-                            <button id="btn-join">Join Game</button>
-                        </div>
-                        <div class="button-group">
-                            <button id="btn-lobby-settings">Settings</button>
-                            <button id="btn-logout">Logout</button>
-                        </div>
-                        <button id="btn-quit-game">Quit Game</button>
-                    </div>
-                </div>
-                <div id="lobby-footer">
-                    <div class="version">v0.1.0 Alpha</div>
-                </div>
-            </div>
+    renderMainMenu() {
+        const menuArea = document.getElementById('lobby-menu-area');
+        if (!menuArea) return;
+
+        menuArea.innerHTML = `
+            <div id="player-stats">Gold: ${this.playerData.gold} | Escapes: ${this.playerData.escapes || 0}</div>
+            <input type="text" id="player-name" placeholder="Enter Name" value="${this.playerData.name}" />
+            <select id="class-select">
+                <option value="Fighter">Fighter (Heal)</option>
+                <option value="Rogue">Rogue (Stealth)</option>
+                <option value="Barbarian">Barbarian (Rage)</option>
+            </select>
+            <div id="lobby-status" class="lobby-status"></div>
+            <button id="btn-enter-dungeon">Enter the Dungeon</button>
+            <button id="btn-lobby-settings">Settings</button>
+            <button id="btn-logout">Logout</button>
+            <button id="btn-quit-game">Quit Game</button>
         `;
 
-        const bgVideo = document.getElementById('lobby-bg-video');
-        if (bgVideo) {
-            bgVideo.muted = true;
-            bgVideo.play().catch(e => console.warn("Lobby video autoplay failed:", e));
-        }
-
-        const codeInput = document.getElementById('room-code-input');
-        if (codeInput) {
-            codeInput.maxLength = 4;
-            codeInput.addEventListener('input', (e) => {
-                e.target.value = e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-            });
-        }
-
-        document.getElementById('btn-host').onclick = () => {
+        document.getElementById('btn-enter-dungeon').onclick = () => {
             const name = document.getElementById('player-name').value;
             const playerClass = document.getElementById('class-select').value;
-            this.onHost(name, playerClass);
-        };
-
-        document.getElementById('btn-quick-join').onclick = () => {
-            const name = document.getElementById('player-name').value;
-            const playerClass = document.getElementById('class-select').value;
-            if (this.onQuickJoin) this.onQuickJoin(name, playerClass);
-        };
-
-        document.getElementById('btn-join').onclick = () => {
-            const code = document.getElementById('room-code-input').value;
-            const name = document.getElementById('player-name').value;
-            const playerClass = document.getElementById('class-select').value;
-            if (!code) return alert("Enter a room code");
-            this.onJoin(code, name, playerClass);
+            if (this.onEnterDungeon) this.onEnterDungeon(name, playerClass);
         };
 
         document.getElementById('btn-lobby-settings').onclick = () => {
@@ -172,11 +156,8 @@ export class Lobby {
     onLoginSuccess(data) {
         console.log("Login successful:", data);
         this.loggedIn = true;
-        this.loginContainer.classList.add('hidden');
-        this.lobbyContainer.classList.remove('hidden');
-        // You might want to load player data from PlayFab here
         this.playerData.name = data.InfoResultPayload.AccountInfo.Username;
-        this.createLobbyUI();
+        this.renderMainMenu();
     }
 
     onLoginFailure(error) {
@@ -206,9 +187,7 @@ export class Lobby {
     logout() {
         this.loggedIn = false;
         this.playerData.name = '';
-        this.lobbyContainer.classList.add('hidden');
-        this.loginContainer.classList.remove('hidden');
-        this.createLoginUI(); // Re-create login UI to clear fields and attach listeners
+        this.renderLoginForm();
     }
 
     showError(message, color = '#ff6b6b') {
