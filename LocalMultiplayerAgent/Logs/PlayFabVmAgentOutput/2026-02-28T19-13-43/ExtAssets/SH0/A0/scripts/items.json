@@ -1,0 +1,122 @@
+{
+    "weapons": {
+        "sword_basic": { 
+            "name": "Rusty Sword", 
+            "sprite": "sword_1.png",
+            "range": 1,
+            "stats": {
+                "damage": { "min": 8, "max": 12 },
+                "attackSpeed": { "min": 750, "max": 1000 },
+                "damageType": "Slashing"
+            },
+            "possibleBonuses": [
+                { "stat": "fireDamage", "min": 1, "max": 3, "chance": 0.1 }
+            ]
+        },
+        "sword_iron": { 
+            "name": "Iron Sword", 
+            "sprite": "sword_1.png",
+            "range": 1,
+            "stats": {
+                "damage": { "min": 14, "max": 18 },
+                "attackSpeed": { "min": 500, "max": 750 },
+                "damageType": "Slashing"
+            },
+            "possibleBonuses": [
+                { "stat": "fireDamage", "min": 2, "max": 5, "chance": 0.2 },
+                { "stat": "iceDamage", "min": 2, "max": 5, "chance": 0.2 }
+            ]
+        },
+        "sword_steel": { 
+            "name": "Steel Longsword", 
+            "sprite": "sword_1.png",
+            "range": 1,
+            "stats": {
+                "damage": { "min": 22, "max": 28 },
+                "attackSpeed": { "min": 500, "max": 600 },
+                "damageType": "Slashing"
+            },
+            "possibleBonuses": [
+                { "stat": "necroticDamage", "min": 5, "max": 10, "chance": 0.3 }
+            ]
+        },
+        "bow_basic": { 
+            "name": "Shortbow", 
+            "sprite": "bow_1.png",
+            "range": 5,
+            "stats": {
+                "damage": { "min": 4, "max": 7 },
+                "attackSpeed": { "min": 500, "max": 750 },
+                "damageType": "Piercing"
+            }
+        },
+        "bow_long": { 
+            "name": "Longbow", 
+            "sprite": "bow_1.png",
+            "range": 7,
+            "stats": {
+                "damage": { "min": 10, "max": 15 },
+                "attackSpeed": { "min": 1000, "max": 1250 },
+                "damageType": "Piercing"
+            }
+        }
+    },
+    "armor": {
+        "armor_leather": { 
+            "name": "Leather Tunic", 
+            "sprite": "armor_leather.png",
+            "stats": {
+                "defense": { "min": 2, "max": 4 },
+                "damageReduction": { "min": 1, "max": 3 },
+                "speedPenalty": 0
+            }
+        },
+        "armor_chain": { 
+            "name": "Chainmail", 
+            "sprite": "armor_leather.png",
+            "stats": {
+                "defense": { "min": 5, "max": 8 },
+                "damageReduction": { "min": 4, "max": 8 },
+                "speedPenalty": 125
+            },
+            "possibleBonuses": [
+                { "stat": "fireResist", "min": 5, "max": 10, "chance": 0.3 }
+            ]
+        },
+        "armor_plate": { 
+            "name": "Plate Armor", 
+            "sprite": "armor_leather.png",
+            "stats": {
+                "defense": { "min": 10, "max": 15 },
+                "damageReduction": { "min": 10, "max": 20 },
+                "speedPenalty": 250
+            },
+            "possibleBonuses": [
+                { "stat": "physicalResist", "min": 5, "max": 15, "chance": 0.5 }
+            ]
+        }
+    },
+    "consumables": {
+        "potion_health": { "name": "Health Potion", "effect": "heal", "value": 25, "sprite": "potion_red.png", "stackable": true, "maxStack": 5 },
+        "potion_max": { "name": "Elixir of Vitality", "effect": "heal", "value": 100, "sprite": "potion_red.png", "stackable": true, "maxStack": 2 }
+    },
+    "loot_tables": {
+        "tier_1": [
+            { "itemId": "sword_basic", "weight": 10 },
+            { "itemId": "potion_health", "weight": 30 },
+            { "itemId": "armor_leather", "weight": 10 }
+        ],
+        "tier_2": [
+            { "itemId": "sword_iron", "weight": 10 },
+            { "itemId": "bow_basic", "weight": 10 },
+            { "itemId": "armor_chain", "weight": 5 },
+            { "itemId": "potion_health", "weight": 20 }
+        ],
+        "tier_3": [
+            { "itemId": "sword_steel", "weight": 5 },
+            { "itemId": "bow_long", "weight": 5 },
+            { "itemId": "armor_plate", "weight": 2 },
+            { "itemId": "potion_max", "weight": 10 }
+        ]
+    }
+}

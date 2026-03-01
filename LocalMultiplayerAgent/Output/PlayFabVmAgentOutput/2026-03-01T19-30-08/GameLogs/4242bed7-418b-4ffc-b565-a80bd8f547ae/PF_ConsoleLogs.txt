@@ -1,0 +1,24 @@
+{"log":"", "stream":"stdout", "time":"2026-03-01T19:30:09.0614992Z"}
+{"log":"E:\\The Oathless\\LocalMultiplayerAgent\\Output\\PlayFabVmAgentOutput\\2026-03-01T19-30-08\\ExtAssets\\SH0\\A0>\"C:\\Program Files\\nodejs\\node.exe\" server.js ", "stream":"stdout", "time":"2026-03-01T19:30:09.0622140Z"}
+{"log":"GSDK config loaded: {", "stream":"stdout", "time":"2026-03-01T19:30:09.2745422Z"}
+{"log":"  heartbeatEndpoint: '127.0.0.1:56001',", "stream":"stdout", "time":"2026-03-01T19:30:09.2746155Z"}
+{"log":"  sessionHostId: '4242bed7-418b-4ffc-b565-a80bd8f547ae',", "stream":"stdout", "time":"2026-03-01T19:30:09.2746236Z"}
+{"log":"  vmId: 'xcloudwusu4uyz5daouzl:NorthAmerica:334dec51-8a8e-46be-8393-47ef227f1c44:tvmps_f92535122d9c417594c0a7b5887fbfada6bb4d0bc3b841349b999e022989b3c3_d',", "stream":"stdout", "time":"2026-03-01T19:30:09.2746293Z"}
+{"log":"  logFolder: 'E:\\\\The Oathless\\\\LocalMultiplayerAgent\\\\Output\\\\PlayFabVmAgentOutput\\\\2026-03-01T19-30-08\\\\GameLogs\\\\4242bed7-418b-4ffc-b565-a80bd8f547ae',", "stream":"stdout", "time":"2026-03-01T19:30:09.2747190Z"}
+{"log":"  certificateFolder: 'E:\\\\The Oathless\\\\LocalMultiplayerAgent\\\\Output\\\\PlayFabVmAgentOutput\\\\2026-03-01T19-30-08\\\\GameCertificates',", "stream":"stdout", "time":"2026-03-01T19:30:09.2747274Z"}
+{"log":"  sharedContentFolder: 'E:\\\\The Oathless\\\\LocalMultiplayerAgent\\\\Output\\\\PlayFabVmAgentOutput\\\\2026-03-01T19-30-08\\\\GameSharedContent',", "stream":"stdout", "time":"2026-03-01T19:30:09.2747308Z"}
+{"log":"  buildMetadata: { Environment: 'LOCAL', FeaturesEnabled: 'List,Of,Features,Enabled' },", "stream":"stdout", "time":"2026-03-01T19:30:09.2747342Z"}
+{"log":"  gamePorts: { game_port: '56100' },", "stream":"stdout", "time":"2026-03-01T19:30:09.2747366Z"}
+{"log":"  publicIpV4Address: '127.0.0.1',", "stream":"stdout", "time":"2026-03-01T19:30:09.2747417Z"}
+{"log":"  gameServerConnectionInfo: {", "stream":"stdout", "time":"2026-03-01T19:30:09.2747437Z"}
+{"log":"    publicIpV4Adress: '127.0.0.1',", "stream":"stdout", "time":"2026-03-01T19:30:09.2747456Z"}
+{"log":"    gamePortsConfiguration: [ [Object] ]", "stream":"stdout", "time":"2026-03-01T19:30:09.2747475Z"}
+{"log":"  },", "stream":"stdout", "time":"2026-03-01T19:30:09.2747498Z"}
+{"log":"  fullyQualifiedDomainName: 'localhost'", "stream":"stdout", "time":"2026-03-01T19:30:09.2747517Z"}
+{"log":"}", "stream":"stdout", "time":"2026-03-01T19:30:09.2747538Z"}
+{"log":"WebSocket server started on port 56100", "stream":"stdout", "time":"2026-03-01T19:30:09.2777805Z"}
+{"log":"Server moved to ACTIVE state. Starting game logic.", "stream":"stdout", "time":"2026-03-01T19:30:14.2783870Z"}
+{"log":"GridSystem: Spawned 89 monsters and 13 chests.", "stream":"stdout", "time":"2026-03-01T19:30:14.2815522Z"}
+{"log":"", "stream":"stdout", "time":"2026-03-01T19:30:18.9167081Z"}
+{"log":"^C", "stream":"stderr", "time":"2026-03-01T19:30:18.9167422Z"}
+{"log":"", "stream":"stderr", "time":"2026-03-01T19:30:18.9167822Z"}

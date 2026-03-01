@@ -1,0 +1,29 @@
+{
+  "name": "the-oathless",
+  "version": "1.0.0",
+  "description": "> An in development browser-based, multiplayer, 2D top-down dungeon crawling extraction game.",
+  "main": "scripts/main.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "start:local": "node server.js --local",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Quoeiza/dungextract.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Quoeiza/dungextract/issues"
+  },
+  "homepage": "https://github.com/Quoeiza/dungextract#readme",
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "got": "^14.6.6",
+    "playfab-sdk": "^2.187.251205",
+    "ws": "^8.19.0"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "heartbeatEndpoint": "127.0.0.1:56001",
+  "sessionHostId": "4242bed7-418b-4ffc-b565-a80bd8f547ae",
+  "vmId": "xcloudwusu4uyz5daouzl:NorthAmerica:334dec51-8a8e-46be-8393-47ef227f1c44:tvmps_f92535122d9c417594c0a7b5887fbfada6bb4d0bc3b841349b999e022989b3c3_d",
+  "logFolder": "E:\\The Oathless\\LocalMultiplayerAgent\\Output\\PlayFabVmAgentOutput\\2026-03-01T19-30-08\\GameLogs\\4242bed7-418b-4ffc-b565-a80bd8f547ae",
+  "certificateFolder": "E:\\The Oathless\\LocalMultiplayerAgent\\Output\\PlayFabVmAgentOutput\\2026-03-01T19-30-08\\GameCertificates",
+  "sharedContentFolder": "E:\\The Oathless\\LocalMultiplayerAgent\\Output\\PlayFabVmAgentOutput\\2026-03-01T19-30-08\\GameSharedContent",
+  "buildMetadata": {
+    "Environment": "LOCAL",
+    "FeaturesEnabled": "List,Of,Features,Enabled"
+  },
+  "gamePorts": {
+    "game_port": "56100"
+  },
+  "publicIpV4Address": "127.0.0.1",
+  "gameServerConnectionInfo": {
+    "publicIpV4Adress": "127.0.0.1",
+    "gamePortsConfiguration": [
+      {
+        "name": "game_port",
+        "serverListeningPort": 56100,
+        "clientConnectionPort": 56100
+      }
+    ]
+  },
+  "fullyQualifiedDomainName": "localhost"
+}

@@ -1,0 +1,29 @@
+{
+    "slime": {
+        "name": "Slime",
+        "hp": 15,
+        "damage": 5,
+        "sprite": "slime.png",
+        "ai": "aggressive",
+        "attackSpeed": 4,
+        "moveSpeed": 1500
+    },
+    "skeleton": {
+        "name": "Skeleton Warrior",
+        "hp": 40,
+        "damage": 6,
+        "sprite": "skelly.png",
+        "ai": "patrol",
+        "attackSpeed": 4,
+        "moveSpeed": 500
+    },
+    "skeleton_reaver": {
+        "name": "Skeleton Reaver",
+        "hp": 25,
+        "damage": 4,
+        "sprite": "skeleton_reaver.png",
+        "ai": "aggressive",
+        "attackSpeed": 2,
+        "moveSpeed": 375
+    }
+}

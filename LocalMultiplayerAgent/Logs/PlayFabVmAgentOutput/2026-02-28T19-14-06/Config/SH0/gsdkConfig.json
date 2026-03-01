@@ -1,0 +1,26 @@
+{
+  "heartbeatEndpoint": "127.0.0.1:56001",
+  "sessionHostId": "7bc056c4-b669-4ac7-bf5d-5542a61f3edb",
+  "vmId": "xcloudwusu4uyz5daouzl:WestUs:61753d0c-116c-4fb8-8f23-8790095399b2:tvmps_8e3e3846e79d4796a7cb3f33cc5548f3d5e7a29187df4a3bbd044a27a410f978_d",
+  "logFolder": "E:\\LocalMultiplayerAgentPublish\\Logs\\PlayFabVmAgentOutput\\2026-02-28T19-14-06\\GameLogs\\7bc056c4-b669-4ac7-bf5d-5542a61f3edb",
+  "certificateFolder": "E:\\LocalMultiplayerAgentPublish\\Logs\\PlayFabVmAgentOutput\\2026-02-28T19-14-06\\GameCertificates",
+  "sharedContentFolder": "E:\\LocalMultiplayerAgentPublish\\Logs\\PlayFabVmAgentOutput\\2026-02-28T19-14-06\\GameSharedContent",
+  "buildMetadata": {
+    "Environment": "LOCAL",
+    "FeaturesEnabled": "List,Of,Features,Enabled"
+  },
+  "gamePorts": {
+    "gameport": "0"
+  },
+  "publicIpV4Address": "127.0.0.1",
+  "gameServerConnectionInfo": {
+    "publicIpV4Adress": "127.0.0.1",
+    "gamePortsConfiguration": [
+      {
+        "name": "gameport",
+        "clientConnectionPort": 8080
+      }
+    ]
+  },
+  "fullyQualifiedDomainName": "localhost"
+}

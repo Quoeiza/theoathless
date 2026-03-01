@@ -1,0 +1,54 @@
+{
+    "RunContainer":  false,
+    "OutputFolder":  "E:\\The Oathless\\LocalMultiplayerAgent\\Output",
+    "NumHeartBeatsForActivateResponse":  10,
+    "NumHeartBeatsForMaintenanceEventResponse":  0,
+    "NumHeartBeatsForTerminateResponse":  60,
+    "AgentListeningPort":  56001,
+    "AssetDetails":  [
+                         {
+                             "MountPath":  "C:\\Assets",
+                             "LocalFilePath":  "E:\\The Oathless\\LocalMultiplayerAgent\\Build.zip"
+                         }
+                     ],
+    "DeploymentMetadata":  {
+                               "Environment":  "LOCAL",
+                               "FeaturesEnabled":  "List,Of,Features,Enabled"
+                           },
+    "GameCertificateDetails":  [
+
+                               ],
+    "PortMappingsList":  [
+                             [
+                                 {
+                                     "NodePort":  56100,
+                                     "GamePort":  {
+                                                      "Name":  "game_port",
+                                                      "Number":  8080,
+                                                      "Protocol":  "TCP"
+                                                  }
+                                 }
+                             ]
+                         ],
+    "ProcessStartParameters":  {
+                                   "StartGameCommand":  "start.bat"
+                               },
+    "ContainerStartParameters":  {
+                                     "StartGameCommand":  "node server.js",
+                                     "ImageDetails":  {
+                                                          "Registry":  "mcr.microsoft.com",
+                                                          "ImageName":  "playfab/multiplayer",
+                                                          "ImageTag":  "wsc-10.0.20348.3207"
+                                                      }
+                                 },
+    "SessionConfig":  {
+                          "SessionId":  "ba67d671-512a-4e7d-a38c-2329ce181946",
+                          "InitialPlayers":  [
+                                                 "Player1",
+                                                 "Player2"
+                                             ]
+                      },
+    "TitleId":  "123FF2",
+    "BuildId":  "00000000-0000-0000-0000-000000000000",
+    "Region":  "NorthAmerica"
+}
